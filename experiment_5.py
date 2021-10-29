@@ -14,7 +14,6 @@ import ufoProcessor
 import ufoProcessor.varModels
 from ufoProcessor.emptyPen import checkGlyphIsEmpty
 
-
 import ezui
 
 
@@ -28,13 +27,18 @@ def ip(a, b, f):
 # https://doc.robofont.com/documentation/topics/window-controller/?highlight=WindowController
 
 
+# moving parts:
+#    LongBoardDesignSpaceProcessor, does the work
+#    LongBoardUI, the window
+#    LongBoardPresenter, triggers the drawing, manages layers in the glyph editor
+
+
 class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
     # this is responsible for 1 designspace document. 
     # keep track of fonts opening and closing
     # build and cache mutators for all things
     # make presentation layers when a glypheditor asks for it
     # all the math will happen here
-
 
     def _instantiateFont(self, path):
         """ Return a instance of a font object with all the given subclasses"""
@@ -44,6 +48,7 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         return RFont(path, showInterface=False)
     
     def loadFonts(self, reload=False):
+        print('loadFonts')
         # Load the fonts and find the default candidate based on the info flag
         # pay attention:
         #     1. different sources can reference different layers in the same ufo
@@ -68,7 +73,6 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         self.glyphNames = list(names)
         self._fontsLoaded = True
 
-    
     def _test_randomLocation(self):
         # pick a random location somewhere in the defined space
         loc = {}
@@ -88,8 +92,10 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         # draw something in the view of the glyph
         fc1 = (0,0.4,1,0.05)
         fc2 = (0.3,0.4,0,0.1)
+        _drawAllMasters = False
         
         glyphMutator = self.getGlyphMutator(viewGlyph.name, fromCache= False)
+        print('glyphMutator', id(glyphMutator))
         glyphInstanceObject = glyphMutator.makeInstance(location, bend=bend)
         merzView.clearSublayers()
         
@@ -97,24 +103,28 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         pathLayer = merzView.appendPathSublayer(
             fillColor=fc2,
             strokeColor=(1,0.2,0.2,1),
-            strokeWidth=1,
-            #lineDash=(30, 30)
+            strokeWidth=.5,
             )
             
         pen = pathLayer.getPen({})
         glyphInstanceObject.draw(pen)
         
-        # draw the other outlines
-        
-        for srcDescriptor in self.sources:
-            for key, f in self.fonts.items():
-                if srcDescriptor.name == key:
-                    pathLayer = merzView.appendPathSublayer(
-                        fillColor=fc1,
-                        )
-                    pen = pathLayer.getPen(f)
-                    thisGlyph = f[viewGlyph.name]        #.getLayer(srcDescriptor.layerName)
-                    thisGlyph.draw(pen)
+        if _drawAllMasters:
+            # draw the other outlines
+            for srcDescriptor in self.sources:
+                for key, f in self.fonts.items():
+                    if srcDescriptor.name == key:
+                        print('srcDescriptor.layerName', srcDescriptor.layerName)
+                        if srcDescriptor.layerName != None:
+                            continue
+                        pathLayer = merzView.appendPathSublayer(
+                            fillColor=fc1,
+                            strokeColor=(fc1[0],fc1[1],fc1[2],1),
+                            strokeWidth=.5,
+                            )
+                        pen = pathLayer.getPen(f)
+                        thisGlyph = f[viewGlyph.name]        #.getLayer(srcDescriptor.layerName)
+                        thisGlyph.draw(pen)
         
     def isThisFontImportant(self, font):
         # called to check if the font with this path is relevant for this designspace
@@ -277,7 +287,6 @@ class LongBoardUI(Subscriber, WindowController):
             )
         )
         
-        
         allLocationsDescription = dict(
             identifier="allLocationsTable",
             type="Table",
@@ -357,7 +366,6 @@ class LongBoardUI(Subscriber, WindowController):
     def stackCallback(self, sender):
         print(sender.get())
 
-
     def sourcesTableDoubleClickCallback(self, sender):
         # callback for double clicking on source list items
         # we expext to open these UFOs
@@ -369,8 +377,9 @@ class LongBoardUI(Subscriber, WindowController):
                 if selectedItem['ufoPath'] not in openThese:
                     openThese.append(selectedItem['ufoPath'])
         # now find the paths
+        self.w.startProgress("Opening fonts")
         [OpenFont(f) for f in openThese]
-        
+        self.updateSources()
         
     def updateCurrentLocation(self):
         # update the UI presentation of the current location
@@ -393,13 +402,13 @@ class LongBoardUI(Subscriber, WindowController):
         # update the sources and layers list whenever we have to. 
         if closeTheseFonts is None:
             closeTheseFonts = []
+        # let's make sure this needs to happen here. 
         self.vendor.loadFonts(reload=True)
         
         srcTable = self.w.findItem('sourcesTable')
         srcItems =[]
         openPaths = [f.path for f in AllFonts()]
         for srcDescriptor in self.vendor.sources:
-            print('updateSources', srcDescriptor)
             if srcDescriptor.layerName is not None:
                 layerName = srcDescriptor.layerName
             else:
@@ -458,6 +467,7 @@ class LongBoardUI(Subscriber, WindowController):
     
     def destroy(self):
         print(f'LongBoardUI {id(self)} closing')
+        postEvent('longboard.is.not.active')
         removeObserver(self, 'longboard.requestUpdate')
 
     def fontDocumentWillOpen(self, info):
