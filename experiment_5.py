@@ -57,21 +57,29 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         if self._fontsLoaded and not reload:
             return
         names = set()
+        currentPaths = {f.path:f for f in AllFonts()}
+        _fonts = {}
         for sourceDescriptor in self.sources:
             if not sourceDescriptor.name in self.fonts:
                 pathOK = True
                 if sourceDescriptor.path is not None:
                     if os.path.exists(sourceDescriptor.path):
-                        self.fonts[sourceDescriptor.name] = self._instantiateFont(sourceDescriptor.path)
-                        # this is not a problem, why report it as one?
-                        names = names | set(self.fonts[sourceDescriptor.name].keys())
+                        if sourceDescriptor.path in currentPaths:
+                            print(f'loadFonts font is open {sourceDescriptor.path}')
+                            _fonts[sourceDescriptor.name] = currentPaths[sourceDescriptor.path]
+                        else:
+                            print(f'loadFonts font is not open {sourceDescriptor.path}')
+                            _fonts[sourceDescriptor.name] = RFont(sourceDescriptor.path, showInterface=False)
+                        names = names | set(_fonts[sourceDescriptor.name].keys())
                 else:
                     pathOK = False
                 if not pathOK:
-                    self.fonts[sourceDescriptor.name] = None
+                    _fonts[sourceDescriptor.name] = None
                     self.problems.append("can't load master from %s"%(sourceDescriptor.path))
         self.glyphNames = list(names)
         self._fontsLoaded = True
+        self.fonts = _fonts
+        pprint(self.fonts)
 
     def _test_randomLocation(self):
         # pick a random location somewhere in the defined space
@@ -95,7 +103,7 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
         _drawAllMasters = False
         
         glyphMutator = self.getGlyphMutator(viewGlyph.name, fromCache= False)
-        print('glyphMutator', id(glyphMutator))
+        print('glyphMutator', id(glyphMutator), glyphMutator)
         glyphInstanceObject = glyphMutator.makeInstance(location, bend=bend)
         merzView.clearSublayers()
         
@@ -132,7 +140,12 @@ class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
             if src.path == font.path:
                 return True
         return False
-        
+    
+    def getFont(self, path):
+        for key, font in self.fonts.items():
+            if font.path == path:
+                return font
+        return None
         
         
         
@@ -182,7 +195,8 @@ class LongBoardUI(Subscriber, WindowController):
                         status="ok",
                         isDefault=False,
                         ufoName=f"Aaaa_{i}.ufo",
-                        layerName=None
+                        layerName=None,
+                        debug='-', 
                     )
                 )
 
@@ -204,16 +218,21 @@ class LongBoardUI(Subscriber, WindowController):
                 dict(
                     identifier="ufoName",
                     title="UFO",
-                    width=300,
+                    width=250,
                 ),
                 dict(
                     identifier="layerName",
                     title="Layer",
-                    width=300,
+                    width=250,
+                ),
+                dict(
+                    identifier="debug",
+                    title="Debug",
+                    width=400,
                 ),
                 ],
             items = sourcesListTestItems,
-            width=800,    # should be flex
+            width=1400,    # should be flex
             height=200
         )
               
@@ -347,8 +366,8 @@ class LongBoardUI(Subscriber, WindowController):
         windowDescription = dict(
             type="Window",
             #size=(800, "auto"),
-            size=(700, 500),
-            maxSize=(1000, 1000),
+            size=(1000, 500),
+            maxSize=(1500, 1500),
             title="Longboard",
             toolbarDescription=toolbarDescription      ,      
             contentDescription=windowContent
@@ -371,15 +390,16 @@ class LongBoardUI(Subscriber, WindowController):
         # we expext to open these UFOs
         print('sourcesTableDoubleClickCallback', sender.getSelectedItems())
         openThese = []
+        alreadyOpen = [f.path for f in AllFonts()]
         bringTheseToFront = []
         for selectedItem in sender.getSelectedItems():
             if selectedItem['status'] == "closed":
-                if selectedItem['ufoPath'] not in openThese:
+                candidate = selectedItem['ufoPath']
+                if candidate not in openThese and candidate not in alreadyOpen:
                     openThese.append(selectedItem['ufoPath'])
         # now find the paths
-        self.w.startProgress("Opening fonts")
-        [OpenFont(f) for f in openThese]
-        self.updateSources()
+        [OpenFont(path) for path in openThese]
+        #self.updateSources()
         
     def updateCurrentLocation(self):
         # update the UI presentation of the current location
@@ -398,10 +418,13 @@ class LongBoardUI(Subscriber, WindowController):
             )
         locTable.set(locItems)
             
-    def updateSources(self,closeTheseFonts=None):
+    def updateSources(self, theseFontsAreClosing=None, theseFontsAreOpening=None):
         # update the sources and layers list whenever we have to. 
-        if closeTheseFonts is None:
-            closeTheseFonts = []
+        # look at skateboard.py for reference // document_checkFonts()
+        if theseFontsAreClosing is None:
+            theseFontsAreClosing = []
+        if theseFontsAreOpening is None:
+            theseFontsAreOpening = []
         # let's make sure this needs to happen here. 
         self.vendor.loadFonts(reload=True)
         
@@ -413,13 +436,18 @@ class LongBoardUI(Subscriber, WindowController):
                 layerName = srcDescriptor.layerName
             else:
                 layerName = ""
-            if srcDescriptor.path in openPaths and srcDescriptor.path not in closeTheseFonts:
+            if srcDescriptor.path in openPaths and srcDescriptor.path not in theseFontsAreClosing:
                 status = "open"
             else:
                 if not os.path.exists(srcDescriptor.path):
                     status = "missing"
                 else:
                     status = "closed"
+            font = self.vendor.getFont(srcDescriptor.path)
+            if font is None:            
+                debugNotice = f"None"
+            else:
+                debugNotice = f"{id(font)} {font.__class__.__name__}"
             srcItems.append(
                     dict(
                         status=status,
@@ -427,6 +455,7 @@ class LongBoardUI(Subscriber, WindowController):
                         ufoName=f"{os.path.basename(srcDescriptor.path)}",
                         layerName=f"{layerName}",
                         ufoPath=srcDescriptor.path,    # can we add arbitrary data?
+                        debug=debugNotice
                     )
                 )
         srcTable.set(srcItems)
@@ -470,7 +499,9 @@ class LongBoardUI(Subscriber, WindowController):
         postEvent('longboard.is.not.active')
         removeObserver(self, 'longboard.requestUpdate')
 
-    def fontDocumentWillOpen(self, info):
+    #def fontDocumentWillOpen(self, info):
+    def fontDocumentDidOpen(self, info):
+        
         """
             LongBoardUI 4624339216 responds to fontDocumentWillOpen
             {'font': <RFont 'MutatorMathTest LightWide' path='/Users/erik/code/LongBoard/test/MutatorSansLightWide.ufo' at 5265509328>,
@@ -484,7 +515,7 @@ class LongBoardUI(Subscriber, WindowController):
         """
         print(f"LongBoardUI {id(self)} responds to fontDocumentWillOpen")
         if self.vendor.isThisFontImportant(info['font']):
-            self.updateSources()
+            self.updateSources(theseFontsAreOpening=info['font'].path)
             print("relevant font opening")
     
     def fontDocumentDidChangeExternally(self, info):
@@ -497,7 +528,7 @@ class LongBoardUI(Subscriber, WindowController):
         print(f"LongBoardUI {id(self)} responds to fontDocumentWillClose")
         print('info', info)
         if self.vendor.isThisFontImportant(info['font']):
-            self.updateSources(closeTheseFonts=info['font'].path)
+            self.updateSources(theseFontsAreClosing=info['font'].path)
         
         
         
