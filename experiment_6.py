@@ -16,6 +16,16 @@ from ufoProcessor.emptyPen import checkGlyphIsEmpty
 
 import ezui
 
+"""
+
+    This is an experimental version of a Skateboard-like tool that shows 
+    interpolations of a designspace in the glyph window. 
+    As both drawing and responding to user events have changed considerably
+    I don't think it is worthwhile to update Skateboard. Rather, this is a 
+    rewrite from the ground up. 
+    
+    This project uses its own designspace in the repository
+"""
 
 def ip(a, b, f):
     return a+f*(b-a)
@@ -32,6 +42,42 @@ def ip(a, b, f):
 #    LongBoardUI, the window
 #    LongBoardPresenter, triggers the drawing, manages layers in the glyph editor
 
+# Issues
+# Switching between open / closed fonts does not always update properly
+#     - open UFO from UI
+#     - open glyph, make change, see LB preview
+#     - open another UFO from UI
+#     - previews are gone. (also debug info in UI is gone)
+#     - how to see where each font comes from
+# How to make sure each glyphwindow is showing the right glyph
+# Is this responding to all the right events
+# Concern: how will DS5 work affect UfoProcessor?
+# Initial drawing does not show up. Only after going out of a glyph and returning to it
+# is the drawing updated.
+
+# Is EZUI the best way to make this interface.
+#     - can't make lists that respond to width changes in the window
+
+# Todo
+# In the main window:
+#    - caching mechanism for mutators
+#    - assess which glyphs are needed at the moment
+#    - this includes nested components
+#    - assess which kerning pairs are needed at the moment (from text on display)
+#    - include designspaceproblems to assess compatibility
+
+# Glyphwindow
+#    - Navigation tool: subscriber? send messages to update the current location
+#    - Build menu with settings
+
+# More: 
+#    - text window
+#        - this really needs to show multiple weights, as to preview the range of instances
+#        - what to base this on? caching?
+#    - space window for navigating
+#    - problem window
+#    - better editing of locations
+#    - 
 
 class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
     # this is responsible for 1 designspace document. 
