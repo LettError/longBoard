@@ -42,7 +42,8 @@ def ip(a, b, f):
 #    LongBoardUI, the window
 #    LongBoardPresenter, triggers the drawing, manages layers in the glyph editor
 
-# Issues
+
+# Issues:
 # Switching between open / closed fonts does not always update properly
 #     - open UFO from UI
 #     - open glyph, make change, see LB preview
@@ -51,18 +52,24 @@ def ip(a, b, f):
 #     - how to see where each font comes from
 # How to make sure each glyphwindow is showing the right glyph
 # Is this responding to all the right events
-# Concern: how will DS5 work affect UfoProcessor?
 # Initial drawing does not show up. Only after going out of a glyph and returning to it
 # is the drawing updated.
+
+
+# Concerns:
+# how will DS5 work affect UfoProcessor?
+# Does this need to juggle multiple designspaces
 
 # Is EZUI the best way to make this interface.
 #     - can't make lists that respond to width changes in the window
 
+
 # Todo
+#     what's the smallest possible working implementation
 # In the main window:
 #    - caching mechanism for mutators
 #    - assess which glyphs are needed at the moment
-#    - this includes nested components
+#    - keep track of nested components so we always have hot mutators for all glyphs we need
 #    - assess which kerning pairs are needed at the moment (from text on display)
 #    - include designspaceproblems to assess compatibility
 
@@ -77,7 +84,8 @@ def ip(a, b, f):
 #    - space window for navigating
 #    - problem window
 #    - better editing of locations
-#    - 
+#    - make a single-pair mutator based approach to kerning
+#        - because: kerning is not likely to change while in live preview
 
 class LongBoardDesignSpaceProcessor(ufoProcessor.DesignSpaceProcessor):
     # this is responsible for 1 designspace document. 
