@@ -50,6 +50,7 @@ def ip(a, b, f):
 #     - open another UFO from UI
 #     - previews are gone. (also debug info in UI is gone)
 #        + what's up with the debug info
+#     - if ufos are already open, LB does not register them properly, no previews
 #     - how to see where each font comes from
 # How to make sure each glyphwindow is showing the right glyph
 # Is this responding to all the right events
