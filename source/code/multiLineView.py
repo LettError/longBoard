@@ -6,6 +6,7 @@
 
 # -- Modules -- #
 from pathlib import Path
+from difflib import Differ
 
 from mojo.subscriber import Subscriber, WindowController
 from mojo.subscriber import registerRoboFontSubscriber
@@ -69,8 +70,8 @@ class MultiLineView(Subscriber, WindowController):
         self.w.open()
 
     def editTextCallback(self, sender):
+        self.updateView(self.txt, sender.get())
         self.txt = sender.get()
-        self.updateView()
 
     def started(self):
         self.populateLayers()
@@ -136,7 +137,7 @@ class MultiLineView(Subscriber, WindowController):
     def destroy(self):
         pass
 
-    def updateView(self):
+    def updateView(self, prevTxt, currentTxt):
         """this should work through a diff, to avoid refreshing the entire stack of layers, what might change:
             - chars in edit text (one less, one more, copy paste of an entire different string)
             - fonts?
@@ -145,9 +146,62 @@ class MultiLineView(Subscriber, WindowController):
 
         meanwhile, just a hard refresh
         """
-        self.container.clearSublayers()
-        self.populateLayers()
-        print(f"update multi line view: {self.txt}")
+        differ = Differ()
+
+        fonts = self.controller.designSpaceManager.fonts
+        fontLayerHgt = self.view.height()/len(fonts)
+
+        for index, (fontName, fontObj) in enumerate(fonts.items()):
+            flatKerning = fontObj.getFlatKerning()
+            fontLayer = self.container.appendRectangleSublayer(
+                name=fontName,
+                position=(0, index*fontLayerHgt),
+                size=(self.view.width(), fontLayerHgt),
+                strokeColor=RED,
+                fillColor=WHITE,
+                strokeWidth=1
+            )
+
+            scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
+            xx = 0
+
+            prevGlyphNames = splitText(prevTxt, fontObj.getCharacterMapping())
+            glyphNames = splitText(currentTxt, fontObj.getCharacterMapping())
+            for name in differ.compare(prevGlyphNames, glyphNames):
+                if name.startswith('- '):
+                    pass
+                elif name.startswith('+ '):
+                    pass
+                elif name.startswith(' '):
+                    pass
+                else:
+                    raise NotImplementedError("difflib issue!")
+
+            for index, glyphName in enumerate(glyphNames):
+
+                # adjust adv according to kerning
+                if index == 0:
+                    prevName = glyphName
+                else:
+                    pair = (prevName, glyphName)
+                    if pair in flatKerning:
+                        xx -= fontObj.getFlatKerning()[pair]
+
+                glyphObj = fontObj[glyphName]
+                glyphBoxLayer = fontLayer.appendRectangleSublayer(
+                    name=f'{index}',
+                    position=(xx, 0),
+                    size=(glyphObj.width, fontObj.info.unitsPerEm),
+                    strokeColor=BLACK,
+                    fillColor=WHITE,
+                    strokeWidth=1
+                )
+                glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
+                glyphPathLayer = glyphBoxLayer.appendPathSublayer(
+                    fillColor=BLACK
+                )
+                glyphPathLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
+                xx += glyphObj.width
 
     def currentDesignSpaceLocationDidChange(self, info):
         pass
