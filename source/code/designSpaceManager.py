@@ -79,6 +79,33 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             loc[axis.name] = lerp(axis.minimum, axis.maximum, .5)
         return loc
 
+    def updateGlyphMutator(self, glyphName, decomposeComponents=False):
+        cacheKey = (glyphName, decomposeComponents)
+        items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
+        new = []
+        for a, b, c in items:
+            if hasattr(b, "toMathGlyph"):
+                # note: calling toMathGlyph ignores the mathGlyphClass preference
+                # maybe the self.mathGlyphClass is not necessary?
+                new.append((a, b.toMathGlyph()))
+            else:
+                new.append((a, self.mathGlyphClass(b)))
+        newMutator = None
+        try:
+            bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)) #xx
+        except TypeError:
+            self.toolLog.append("getGlyphMutator %s items: %s new: %s" % (glyphName, items, new))
+            self.problems.append("\tCan't make processor for glyph %s" % (glyphName))
+        if newMutator is not None:
+            self._glyphMutators[cacheKey] = newMutator
+
+    def getGlyphMutator(self, glyphName, decomposeComponents=False, fromCache=False):
+        # make a mutator / varlib object for glyphName.
+        cacheKey = (glyphName, decomposeComponents)
+        if not (cacheKey in self._glyphMutators and fromCache):
+            self.updateGlyphMutator(glyphName, decomposeComponents=decomposeComponents)
+        return self._glyphMutators[cacheKey]
+
     def makePresentation(self, glyphName, location, bend=True, changed=False):
         # draw something in the view of the glyph
         # fc1 = (0, 0.4, 1, 0.05)
