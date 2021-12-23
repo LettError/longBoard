@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # --------------- #
-# Multi Line View #
+# MULTI LINE VIEW #
 # --------------- #
 
 # -- Modules -- #

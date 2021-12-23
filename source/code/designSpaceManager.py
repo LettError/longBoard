@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # -------------------- #
-# Design Space Manager #
+# DESIGN SPACE MANAGER #
 # -------------------- #
 
 # -- Modules -- #

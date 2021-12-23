@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# -- #
-# 🛹 #
-# -- #
+# --------- #
+# LONGBOARD #
+# --------- #
 
 # -- Modules -- #
 from pathlib import Path
