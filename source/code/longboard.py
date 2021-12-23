@@ -6,6 +6,7 @@
 
 # -- Modules -- #
 from pathlib import Path
+from random import random
 
 from AppKit import NSImage
 from mojo.subscriber import WindowController, Subscriber
@@ -14,7 +15,7 @@ from mojo.subscriber import registerGlyphEditorSubscriber, unregisterGlyphEditor
 
 from mojo.roboFont import OpenWindow
 from mojo.events import BaseEventTool, uninstallTool, installTool, postEvent
-from vanilla import FloatingWindow, Window
+from vanilla import FloatingWindow, Window, RadioGroup
 from merz import MerzView
 
 from designSpaceManager import DesignSpaceManager
@@ -26,13 +27,18 @@ from customEvents import TOOL_KEY, DEBUG_MODE
 BLACK = 0, 0, 0, 1
 
 # -- Objects -- #
-class Controller(WindowController):
+class Controller(Subscriber, WindowController):
 
     debug = DEBUG_MODE
     _currentDesignSpaceLocation = None
 
     def build(self):
-        self.w = FloatingWindow((200, 40), "Controller")
+        self.w = FloatingWindow((300, 80), "Controller")
+        self.w.varModelRadio = RadioGroup((10, 10, -10, 40),
+                                          ["varLib", "mutatorMath"],
+                                          callback=self.varModelRadioCallback)
+        # varLib is then selected in loadTestDocument()
+        self.w.varModelRadio.set(0)
         self.w.open()
 
     def started(self):
@@ -73,6 +79,39 @@ class Controller(WindowController):
         self._currentDesignSpaceLocation = value
         postEvent(f"{TOOL_KEY}.currentDesignSpaceLocationDidChange")
 
+    # glyph objects callbacks
+    adjunctGlyphDidChangeContoursDelay = 0.2
+    def adjunctGlyphDidChangeContours(self, info):
+        glyphName = info['glyph'].name
+        print(f'adjunctGlyphDidChangeContours: {glyphName}')
+        self.designSpaceManager.updateGlyphMutator(glyphName)
+        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
+
+    adjunctGlyphDidChangeMetricsDelay = 0.2
+    def adjunctGlyphDidChangeMetrics(self, info):
+        glyphName = info['glyph'].name
+        self.designSpaceManager.updateGlyphMutator(glyphName)
+        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
+
+    adjunctGlyphDidChangeComponentsDelay = 0.2
+    def adjunctGlyphDidChangeComponents(self, info):
+        glyphName = info['glyph'].name
+        self.designSpaceManager.updateGlyphMutator(glyphName)
+        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
+
+    # font objects callbacks
+    def adjunctFontKerningDidChange(self, info):
+        pass
+
+    def adjunctFontGroupsDidChange(self, info):
+        pass
+
+    # controls callbacks
+    def varModelRadioCallback(self, sender):
+        self.designSpaceManager.useVarlib = True if sender.get() == 'varLib' else False
+        postEvent(f"{TOOL_KEY}.varModelDidChange")
+
+    # temp
     def loadTestDocument(self):
         print('loadTestDocument')
         self.designSpaceManager = DesignSpaceManager()
@@ -100,23 +139,56 @@ class GlyphEditorSubscriber(Subscriber):
         )
 
         self.drawingLayer = container.appendPathSublayer(
-            fillColor=(1, 0, 0, 0.1),
-            strokeColor=(1, 0, 0, 0.5),
             strokeWidth=0.5,
         )
+        self.randomizeDrawingLayerColors()
 
     def started(self):
+        glyphName = self.getGlyphEditor().getGlyph().name
+        for fontName, fontObj in self.controller.designSpaceManager.fonts.items():
+            self.controller.addAdjunctObjectToObserve(fontObj[glyphName])
         self.updatePreview()
 
     def destroy(self):
         self.drawingLayer.clearSublayers()
 
+    def glyphEditorWillSetGlyph(self, info):
+        print("glyphEditorWillSetGlyph")
+        # what happens is the multi line view is observing something of our interest here?
+        # glyphName = info['glyph'].name
+        # glyphName = self.getGlyphEditor().getGlyph().name
+        # for fontName, fontObj in self.controller.designSpaceManager.fonts.items():
+        #     self.controller.removeObservedAdjunctObject(fontObj[glyphName])
+
+    def glyphEditorDidSetGlyph(self, info):
+        print("glyphEditorDidSetGlyph")
+        # glyphName = info['glyph'].name
+        # for fontName, fontObj in self.controller.designSpaceManager.fonts.items():
+        #     self.controller.addAdjunctObjectToObserve(fontObj[glyphName])
+        # self.updatePreview()
+
     def updatePreview(self):
         glyphName = self.getGlyphEditor().getGlyph().name
         location = self.controller.currentDesignSpaceLocation
         glyphObj = self.controller.designSpaceManager.makePresentation(glyphName, location)
+        self.randomizeDrawingLayerColors()
         pen = self.drawingLayer.getPen()
         glyphObj.draw(pen)
+
+    def randomizeDrawingLayerColors(self):
+        with self.drawingLayer.propertyGroup():
+            rgb = random(), random(), 0
+            self.drawingLayer.setFillColor(rgb + (0.1,))
+            self.drawingLayer.setStrokeColor(rgb + (0.5,))
+
+    def varModelDidChange(self, info):
+        print('updating preview because varModel did change')
+        self.updatePreview()
+
+    def glyphMutatorDidChange(self, info):
+        print(f'listening to this: {info["glyphName"]}')
+        if info['glyphName'] == self.getGlyphEditor().getGlyph().name:
+            self.updatePreview()
 
     def currentDesignSpaceLocationDidChange(self, info):
         self.updatePreview()
@@ -142,6 +214,7 @@ class SpaceWindow(Subscriber, WindowController):
 
     debug = DEBUG_MODE
     controller = None
+    glyphName = 'A'
 
     def build(self):
         self.w = Window((500, 500), "Space Window")
@@ -180,14 +253,18 @@ class SpaceWindow(Subscriber, WindowController):
         self.controller.currentDesignSpaceLocation = location
 
     def updateCurrentLocationLayer(self):
-        glyphObj = self.controller.designSpaceManager.makePresentation('A', self.controller.currentDesignSpaceLocation)
+        glyphObj = self.controller.designSpaceManager.makePresentation(self.glyphName, self.controller.currentDesignSpaceLocation)
         pen = self.currentDesignSpaceLocationLayer.getPen()
         glyphObj.draw(pen)
 
     def currentDesignSpaceLocationDidChange(self, info):
         self.updateCurrentLocationLayer()
 
+    def glyphMutatorDidChange(self, info):
+        if self.glyphName == info['glyphName']:
+            self.updateCurrentLocationLayer()
+
 
 # -- Instructions -- #
 if __name__ == '__main__':
-    OpenWindow(Controller)
+    registerRoboFontSubscriber(Controller)
