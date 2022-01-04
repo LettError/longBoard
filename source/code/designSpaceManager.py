@@ -104,7 +104,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
     def getGlyphMutator(self, glyphName, decomposeComponents=False, fromCache=False):
         # make a mutator / varlib object for glyphName.
         cacheKey = (glyphName, decomposeComponents)
-        if not (cacheKey in self._glyphMutators and fromCache):
+        if cacheKey not in self._glyphMutators or not fromCache:
             self.updateGlyphMutator(glyphName, decomposeComponents=decomposeComponents)
         return self._glyphMutators[cacheKey]
 
