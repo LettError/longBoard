@@ -90,12 +90,14 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                 new.append((a, b.toMathGlyph()))
             else:
                 new.append((a, self.mathGlyphClass(b)))
+
         newMutator = None
         try:
             bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)) #xx
         except TypeError:
-            self.toolLog.append("getGlyphMutator %s items: %s new: %s" % (glyphName, items, new))
-            self.problems.append("\tCan't make processor for glyph %s" % (glyphName))
+            self.toolLog.append(f"getGlyphMutator {glyphName} items: {items} new: {new}")
+            self.problems.append("\tCan't make processor for glyph {glyphName}")
+
         if newMutator is not None:
             self._glyphMutators[cacheKey] = newMutator
 
