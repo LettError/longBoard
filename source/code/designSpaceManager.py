@@ -38,8 +38,12 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         #     1. different sources can reference different layers in the same ufo
         #     2. also: the same source can appear in different places in the designspace
         # so maybe the sourcedescriptor.name is not a good identifier
+
+        # font are already loaded, if not asked explicitly, we keep serving
+        # what we already have
         if self._fontsLoaded and not reload_:
             return
+
         names = set()
         currentPaths = {f.path: f for f in AllFonts()}
         _fonts = {}
@@ -60,6 +64,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                 if not pathOK:
                     _fonts[sourceDescriptor.name] = None
                     self.problems.append(f"can't load master from {sourceDescriptor.path}")
+
         self.glyphNames = list(names)
         self._fontsLoaded = True
         self.fonts = _fonts
@@ -80,29 +85,51 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         return loc
 
     def invalidateCache(self, glyphName):
+        print(f'invalidateCache: {glyphName}')
         cacheKey = (glyphName, True)   # the boolean value refers to `decomposeComponents`
-        del self._glyphMutators[cacheKey]
+        if cacheKey in self._glyphMutators:
+            del self._glyphMutators[cacheKey]
 
     def updateGlyphMutator(self, glyphName, decomposeComponents=False):
         cacheKey = (glyphName, decomposeComponents)
         items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
+
+        # RA: it seems that the second item of each tuple coming from the collectMastersForGlyph method
+        #     might be some kind of glyph object, which kinds?
+        #     also, could be a nice idea to change collectMastersForGlyph in something like collectSourcesForGlyph?
         new = []
-        for a, b, c in items:
-            if hasattr(b, "toMathGlyph"):
+        for location, glyphObj, sourceAttributes in items:
+            if hasattr(glyphObj, "toMathGlyph"):
                 # note: calling toMathGlyph ignores the mathGlyphClass preference
                 # maybe the self.mathGlyphClass is not necessary?
-                new.append((a, b.toMathGlyph()))
+                new.append((location, glyphObj.toMathGlyph()))
             else:
-                new.append((a, self.mathGlyphClass(b)))
+                new.append((location, self.mathGlyphClass(glyphObj)))
 
         newMutator = None
         try:
-            bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)) #xx
+            bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes,
+                                                           bias=self.newDefaultLocation(bend=True))  # xx
+
+        # RA: I tried to make some source incompatible (by adding a point to a contour)
+        #     but they throw an IndexError, not a TypeError. Also, the Exception seem to come for somewhere deeper
+        #     when using varLib and I could not manage to catch it. How should we catch these mistakes?
+        # except (TypeError, IndexError):
         except TypeError:
             self.toolLog.append(f"getGlyphMutator {glyphName} items: {items} new: {new}")
             self.problems.append(f"\tCan't make processor for glyph {glyphName}")
-        if newMutator is not None:
-            self._glyphMutators[cacheKey] = newMutator
+
+            # RA: I think it is a good idea to invalidate the cache here.
+            #     Even if the old mutator works, it does not
+            #     represent the current state correctly
+            self.invalidateCache(glyphName)
+
+            # RA: I am not sure this is the best approach to signal to the longboard controller
+            #     that the mutator is broken, we can find a better solution
+            newMutator = False
+
+        # RA: conditional removed, we either insert a working mutator or False, check above!
+        self._glyphMutators[cacheKey] = newMutator
 
     def getGlyphMutator(self, glyphName, decomposeComponents=False):
         # make a mutator / varlib object for glyphName.
@@ -117,8 +144,8 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # fc2 = (0.3, 0.4, 0, 0.1)
         # _drawAllMasters = False
 
-        glyphMutator = self.getGlyphMutator(glyphName, fromCache=False)
-        print('glyphMutator', id(glyphMutator), glyphMutator)
+        glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
+        print(f'glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}')
         if glyphMutator is None:
             # huh nothing works
             return

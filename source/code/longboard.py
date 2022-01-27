@@ -23,11 +23,23 @@ from designSpaceManager import DesignSpaceManager
 from multiLineView import MultiLineView
 from customEvents import TOOL_KEY, DEBUG_MODE
 
+"""
+Notes:
+    - the live preview now works only if fonts are opened in RF (with interface) before launching longboard
+"""
+
 
 # -- Constants -- #
 BLACK = 0, 0, 0, 1
 
 # -- Objects -- #
+def randomizeLayerColors(layer):
+    with layer.propertyGroup():
+        rgb = [random(), random(), 0]
+        layer.setFillColor(tuple(rgb + [0.1]))
+        layer.setStrokeColor(tuple(rgb + [0.5]))
+
+
 class Controller(WindowController):
 
     debug = DEBUG_MODE
@@ -49,11 +61,11 @@ class Controller(WindowController):
         self.navigator = NavigatorTool()
         installTool(self.navigator)
 
-        SpaceWindow.controller = self
-        registerRoboFontSubscriber(SpaceWindow)
+        # SpaceWindow.controller = self
+        # registerRoboFontSubscriber(SpaceWindow)
 
-        MultiLineView.controller = self
-        self.multiLineWindow = MultiLineView()
+        # MultiLineView.controller = self
+        # self.multiLineWindow = MultiLineView()
 
         GlyphEditorSubscriber.controller = self
         registerGlyphEditorSubscriber(GlyphEditorSubscriber)
@@ -61,21 +73,21 @@ class Controller(WindowController):
         CurrentGlyphSubscriber.controller = self
         registerCurrentGlyphSubscriber(CurrentGlyphSubscriber)
 
-    def destroy(self):
+    def destroy(self, sender):
+        NavigatorTool.controller = None
+        uninstallTool(self.navigator)
+
+        # SpaceWindow.controller = None
+        # unregisterRoboFontSubscriber(SpaceWindow)
+
+        # MultiLineView.controller = None
+        # self.multiLineWindow.destroy()
+
         GlyphEditorSubscriber.controller = None
         unregisterGlyphEditorSubscriber(GlyphEditorSubscriber)
 
         CurrentGlyphSubscriber.controller = None
         unregisterCurrentGlyphSubscriber(CurrentGlyphSubscriber)
-
-        NavigatorTool.controller = None
-        uninstallTool(self.navigator)
-
-        SpaceWindow.controller = None
-        unregisterRoboFontSubscriber(SpaceWindow)
-
-        MultiLineView.controller = None
-        self.multiLineWindow.destroy()
 
     @property
     def currentDesignSpaceLocation(self):
@@ -113,21 +125,21 @@ class CurrentGlyphSubscriber(Subscriber):
     def currentGlyphDidChangeMetrics(self, info):
         print('currentGlyphDidChangeMetrics')
         glyphName = info['glyph'].name
-        self.controller.designSpaceManager.updateGlyphMutator(glyphName)
+        self.controller.designSpaceManager.invalidateCache(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
     currentGlyphDidChangeContoursDelay = 0.2
     def currentGlyphDidChangeContours(self, info):
         print('currentGlyphDidChangeContours')
         glyphName = info['glyph'].name
-        self.controller.designSpaceManager.updateGlyphMutator(glyphName)
+        self.controller.designSpaceManager.invalidateCache(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
     currentGlyphDidChangeComponentsDelay = 0.2
     def currentGlyphDidChangeComponents(self, info):
         print('currentGlyphDidChangeComponents')
         glyphName = info['glyph'].name
-        self.controller.designSpaceManager.updateGlyphMutator(glyphName)
+        self.controller.designSpaceManager.invalidateCache(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
 
@@ -139,36 +151,61 @@ class GlyphEditorSubscriber(Subscriber):
     def build(self):
         glyphEditor = self.getGlyphEditor()
 
-        container = glyphEditor.extensionContainer(
+        self.container = glyphEditor.extensionContainer(
             identifier=TOOL_KEY,
             location='background',
             clear=True
         )
 
-        self.drawingLayer = container.appendPathSublayer(
+        self.previewLayer = self.container.appendPathSublayer(
             strokeWidth=0.5,
         )
-        self.randomizeDrawingLayerColors()
+        randomizeLayerColors(layer=self.previewLayer)
+
+        self.sourcesLayer = self.container.appendBaseSublayer()
 
     def started(self):
         self.updatePreview()
 
     def destroy(self):
-        self.drawingLayer.clearSublayers()
+        self.container.clearSublayers()
 
     def updatePreview(self):
         glyphName = self.getGlyphEditor().getGlyph().name
         location = self.controller.currentDesignSpaceLocation
         glyphObj = self.controller.designSpaceManager.makePresentation(glyphName, location)
-        self.randomizeDrawingLayerColors()
-        pen = self.drawingLayer.getPen()
-        glyphObj.draw(pen)
+        print(f"glyphObj: {glyphObj}")
 
-    def randomizeDrawingLayerColors(self):
-        with self.drawingLayer.propertyGroup():
-            rgb = random(), random(), 0
-            self.drawingLayer.setFillColor(rgb + (0.1,))
-            self.drawingLayer.setStrokeColor(rgb + (0.5,))
+        # working mutator
+        if glyphObj is not None:
+            print("working mutator!")
+            self.sourcesLayer.clearSublayers()
+            randomizeLayerColors(layer=self.previewLayer)
+            pen = self.previewLayer.getPen()
+            glyphObj.draw(pen)
+
+        # broken mutator
+        else:
+            print("broken mutator!")
+            self.sourcesLayer.clearSublayers()
+            self.previewLayer.clearSublayers()
+
+            sources = self.controller.designSpaceManager.collectMastersForGlyph(glyphName, decomposeComponents=True)
+
+            xx = 0
+            for location, mathGlyph, sourceAttributes in sources:
+                glyphLayer = self.sourcesLayer.appendPathSublayer(
+                    strokeWidth=1
+                )
+
+                randomizeLayerColors(layer=glyphLayer)
+                glyphLayer.addTranslationTransformation(value=(0, -250), name="moveToBottom")
+                glyphLayer.addScaleTransformation(value=(0.25, 0.25), name="scaleDownToThumbnails")
+                glyphLayer.addTranslationTransformation(value=(xx, 0), name="advanceWidth")
+
+                pen = glyphLayer.getPen()
+                mathGlyph.draw(pen)
+                xx += mathGlyph.width
 
     def varModelDidChange(self, info):
         print('updating preview because varModel did change')
