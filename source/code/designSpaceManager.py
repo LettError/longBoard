@@ -79,6 +79,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             loc[axis.name] = lerp(axis.minimum, axis.maximum, .5)
         return loc
 
+    def invalidateCache(self, glyphName):
+        cacheKey = (glyphName, True)   # the boolean value refers to `decomposeComponents`
+        del self._glyphMutators[cacheKey]
+
     def updateGlyphMutator(self, glyphName, decomposeComponents=False):
         cacheKey = (glyphName, decomposeComponents)
         items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
@@ -96,15 +100,14 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)) #xx
         except TypeError:
             self.toolLog.append(f"getGlyphMutator {glyphName} items: {items} new: {new}")
-            self.problems.append("\tCan't make processor for glyph {glyphName}")
-
+            self.problems.append(f"\tCan't make processor for glyph {glyphName}")
         if newMutator is not None:
             self._glyphMutators[cacheKey] = newMutator
 
-    def getGlyphMutator(self, glyphName, decomposeComponents=False, fromCache=False):
+    def getGlyphMutator(self, glyphName, decomposeComponents=False):
         # make a mutator / varlib object for glyphName.
         cacheKey = (glyphName, decomposeComponents)
-        if cacheKey not in self._glyphMutators or not fromCache:
+        if cacheKey not in self._glyphMutators:
             self.updateGlyphMutator(glyphName, decomposeComponents=decomposeComponents)
         return self._glyphMutators[cacheKey]
 
