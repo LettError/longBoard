@@ -17,7 +17,7 @@ class FontManager(Subscriber):
 
     debug = True
     fonts = {}
-    soonToBeCloseFontPath = None
+    fontSoonWithoutInterface = None
 
     def build(self):
         print('build!')
@@ -46,20 +46,45 @@ class FontManager(Subscriber):
         self.printStatus()
 
     def fontDocumentWillClose(self, info):
-        self.soonToBeCloseFontPath = info['font'].path
+        self.fontSoonWithoutInterface = info['font']
 
     def fontDocumentDidClose(self, info):
         print('fontDocumentDidClose!')
         # substitute the font with interface (closing down) with the font without interface
-        self.fonts[self.soonToBeCloseFontPath] = OpenFont(self.soonToBeCloseFontPath, showInterface=False)
-        self.soonToBeCloseFontPath = None
+        # collected from fontDocumentWillClose()
+        self.fonts[self.fontSoonWithoutInterface.path] = self.fontSoonWithoutInterface
+        self.fontSoonWithoutInterface = None
         self.printStatus()
 
     def loadFontsInBackground(self):
-        sourcesFolder = Path.cwd().parent / "resources"
+        sourcesFolder = Path.cwd().parent / "source" / "resources"
         for eachPath in [pp for pp in sourcesFolder.iterdir() if pp.suffix == '.ufo']:
             fontObj = OpenFont(eachPath, showInterface=False)
             self.fonts[fontObj.path] = fontObj
+
+
+"""
+snippet from Frederik
+
+from mojo.subscriber import Subscriber, registerRoboFontSubscriber
+
+class Test(Subscriber):
+
+    debug = True
+
+    font = None
+    def fontDocumentWillClose(self, info):
+        self.font = info["font"]
+
+    def fontDocumentDidClose(self, info):
+        if self.font is not None:
+            print(self.font.document())
+
+            # self.font.openInterface()
+
+registerRoboFontSubscriber(Test)
+
+"""
 
 
 # -- Instructions -- #
