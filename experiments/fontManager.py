@@ -34,15 +34,15 @@ class FontManager(Subscriber):
 
     def printStatus(self):
         print('----'*4)
-        for path, eachFont in self.fonts.items():
-            print(f'{basename(eachFont.path)}; glyphs amount: {len(eachFont)}; has interface? {eachFont.hasInterface()}')
+        for path, (eachFont, hasInterface) in self.fonts.items():
+            print(f'{basename(eachFont.path)}; glyphs amount: {len(eachFont)}; has interface? {hasInterface}')
         print('----'*4)
 
     def fontDocumentDidOpen(self, info):
         print('fontDocumentDidOpen!')
         # substitute the font without interface with the font with interface
         fontObj = info['font']
-        self.fonts[fontObj.path] = fontObj
+        self.fonts[fontObj.path] = (fontObj, True)
         self.printStatus()
 
     def fontDocumentWillClose(self, info):
@@ -52,7 +52,7 @@ class FontManager(Subscriber):
         print('fontDocumentDidClose!')
         # substitute the font with interface (closing down) with the font without interface
         # collected from fontDocumentWillClose()
-        self.fonts[self.fontSoonWithoutInterface.path] = self.fontSoonWithoutInterface
+        self.fonts[self.fontSoonWithoutInterface.path] = (self.fontSoonWithoutInterface, False)
         self.fontSoonWithoutInterface = None
         self.printStatus()
 
@@ -60,7 +60,7 @@ class FontManager(Subscriber):
         sourcesFolder = Path.cwd().parent / "source" / "resources"
         for eachPath in [pp for pp in sourcesFolder.iterdir() if pp.suffix == '.ufo']:
             fontObj = OpenFont(eachPath, showInterface=False)
-            self.fonts[fontObj.path] = fontObj
+            self.fonts[fontObj.path] = (fontObj, False)
 
 
 """
