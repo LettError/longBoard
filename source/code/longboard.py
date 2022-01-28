@@ -129,14 +129,22 @@ class CurrentGlyphSubscriber(Subscriber):
         print('currentGlyphDidChangeMetrics')
         glyphName = info['glyph'].name
         self.controller.designSpaceManager.invalidateCache(glyphName)
+        self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
     currentGlyphDidChangeContoursDelay = 0.2
     def currentGlyphDidChangeContours(self, info):
         print('currentGlyphDidChangeContours')
-        glyphName = info['glyph'].name
-        self.controller.designSpaceManager.invalidateCache(glyphName)
-        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
+        glyphObj = info['glyph']
+        self.controller.designSpaceManager.invalidateCache(glyphObj.name)
+        self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphObj)
+        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphObj.name)
+
+    def invalidateCacheWhereGlyphIsUsedAsComponent(self, glyph):
+        mapping = glyph.font.getReverseComponentMapping()
+        if glyph.name in mapping:
+            for componentName in mapping[glyph.name]:
+                self.controller.designSpaceManager.invalidateCache(componentName)
 
 
 class GlyphEditorSubscriber(Subscriber):
