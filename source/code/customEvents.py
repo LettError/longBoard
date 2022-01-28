@@ -61,3 +61,16 @@ if __name__ == '__main__':
             delay=0.2,
             debug=DEBUG_MODE
         )
+
+    # var model
+    eventName = f"{TOOL_KEY}.controllerWillClose"
+    if eventName not in subscriberEvents:
+        registerSubscriberEvent(
+            subscriberEventName=eventName,
+            methodName="controllerWillClose",
+            lowLevelEventNames=[eventName],
+            documentation="main controller window will close",
+            dispatcher="roboFont",
+            delay=0,
+            debug=DEBUG_MODE
+        )

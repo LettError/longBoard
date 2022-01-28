@@ -108,8 +108,11 @@ class MultiLineView(Subscriber, WindowController):
                 strokeWidth=1
             )
 
-    def destroy(self):
-        pass
+    def controllerWillClose(self, info):
+        # considering that the controller object does not have direct access to the subordinate
+        # object window, we need to use a custom event to close the MultiLineView vanilla window
+        # otherwise it will stay open after longboard has been closed by the user
+        self.w.close()
 
     def updateView(self, prevTxt, currentTxt):
         """this should work through a diff, to avoid refreshing the entire stack of layers, what might change:

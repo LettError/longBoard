@@ -61,11 +61,12 @@ class Controller(WindowController):
         self.navigator = NavigatorTool()
         installTool(self.navigator)
 
-        # SpaceWindow.controller = self
-        # registerRoboFontSubscriber(SpaceWindow)
+        SpaceWindow.controller = self
+        registerRoboFontSubscriber(SpaceWindow)
 
-        # MultiLineView.controller = self
-        # self.multiLineWindow = MultiLineView()
+        MultiLineView.controller = self
+        registerRoboFontSubscriber(MultiLineView)
+        self.multiLineWindow = MultiLineView()
 
         GlyphEditorSubscriber.controller = self
         registerGlyphEditorSubscriber(GlyphEditorSubscriber)
@@ -73,15 +74,17 @@ class Controller(WindowController):
         CurrentGlyphSubscriber.controller = self
         registerCurrentGlyphSubscriber(CurrentGlyphSubscriber)
 
-    def destroy(self, sender):
+    def destroy(self):
+        postEvent(f"{TOOL_KEY}.controllerWillClose")
+
         NavigatorTool.controller = None
         uninstallTool(self.navigator)
 
-        # SpaceWindow.controller = None
-        # unregisterRoboFontSubscriber(SpaceWindow)
+        SpaceWindow.controller = None
+        unregisterRoboFontSubscriber(SpaceWindow)
 
-        # MultiLineView.controller = None
-        # self.multiLineWindow.destroy()
+        MultiLineView.controller = None
+        unregisterRoboFontSubscriber(MultiLineView)
 
         GlyphEditorSubscriber.controller = None
         unregisterGlyphEditorSubscriber(GlyphEditorSubscriber)
@@ -131,13 +134,6 @@ class CurrentGlyphSubscriber(Subscriber):
     currentGlyphDidChangeContoursDelay = 0.2
     def currentGlyphDidChangeContours(self, info):
         print('currentGlyphDidChangeContours')
-        glyphName = info['glyph'].name
-        self.controller.designSpaceManager.invalidateCache(glyphName)
-        postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
-
-    currentGlyphDidChangeComponentsDelay = 0.2
-    def currentGlyphDidChangeComponents(self, info):
-        print('currentGlyphDidChangeComponents')
         glyphName = info['glyph'].name
         self.controller.designSpaceManager.invalidateCache(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
@@ -269,6 +265,12 @@ class SpaceWindow(Subscriber, WindowController):
 
     def destroy(self):
         self.container.clearSublayers()
+
+    def controllerWillClose(self, info):
+        # considering that the controller object does not have direct access to the subordinate
+        # object window, we need to use a custom event to close the SpaceWindow vanilla window
+        # otherwise it will stay open after longboard has been closed by the user
+        self.w.close()
 
     def mouseDragged(self, view, event):
         pass
