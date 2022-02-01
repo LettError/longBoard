@@ -366,7 +366,7 @@ class FontManager(Subscriber):
         print('fontDocumentDidOpen!')
         # substitute the font without interface with the font with interface
         fontObj = info['font']
-        self.controller.designSpaceManager.fonts[fontObj.path] = fontObj
+        self.injectNewFont(fontObj)
         self.printStatus()
 
     def fontDocumentWillClose(self, info):
@@ -379,9 +379,20 @@ class FontManager(Subscriber):
         # substitute the font with interface (closing down) with a freshly opened font without interface
         # this will make sure that if the user did not save the last edits, the font we're using
         # will reflect the actual state of the file saved on disk
-        self.controller.designSpaceManager.fonts[self.soonClosingFontPath] = OpenFont(self.soonClosingFontPath, showInterface=False)
-        self.soonClosingFontPath = None
-        self.printStatus()
+
+        # the code checks against self.soonClosingFontPath = None because otherwise it might trigger
+        # so open font dialogs when quitting the application 🤷‍♂️
+        if self.soonClosingFontPath:
+            fontObj = OpenFont(self.soonClosingFontPath, showInterface=False)
+            self.injectNewFont(fontObj)
+            self.soonClosingFontPath = None
+            self.printStatus()
+
+    def injectNewFont(self, newFont):
+        for sourceDescriptorName in self.controller.designSpaceManager.fonts.keys():
+            storedFont = self.controller.designSpaceManager.fonts[sourceDescriptorName]
+            if storedFont.path == newFont.path:
+                self.controller.designSpaceManager.fonts[sourceDescriptorName] = newFont
 
 
 # -- Instructions -- #
