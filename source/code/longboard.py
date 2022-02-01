@@ -6,6 +6,7 @@
 
 # -- Modules -- #
 from pathlib import Path
+from os.path import basename
 from random import random
 
 from AppKit import NSImage
@@ -14,7 +15,7 @@ from mojo.subscriber import registerRoboFontSubscriber, unregisterRoboFontSubscr
 from mojo.subscriber import registerGlyphEditorSubscriber, unregisterGlyphEditorSubscriber
 from mojo.subscriber import registerCurrentGlyphSubscriber, unregisterCurrentGlyphSubscriber
 
-from mojo.roboFont import OpenWindow
+from mojo.roboFont import OpenWindow, OpenFont
 from mojo.events import BaseEventTool, uninstallTool, installTool, postEvent
 from vanilla import FloatingWindow, Window, RadioGroup
 from merz import MerzView
@@ -85,6 +86,9 @@ class Controller(WindowController):
         CurrentGlyphSubscriber.controller = self
         registerCurrentGlyphSubscriber(CurrentGlyphSubscriber)
 
+        FontManager.controller = self
+        registerRoboFontSubscriber(FontManager)
+
     def destroy(self):
         postEvent(f"{TOOL_KEY}.controllerWillClose")
 
@@ -102,6 +106,9 @@ class Controller(WindowController):
 
         CurrentGlyphSubscriber.controller = None
         unregisterCurrentGlyphSubscriber(CurrentGlyphSubscriber)
+
+        FontManager.controller = None
+        unregisterRoboFontSubscriber(FontManager)
 
     @property
     def currentDesignSpaceLocation(self):
@@ -333,6 +340,47 @@ class SpaceWindow(Subscriber, WindowController):
 
     def currentDesignSpaceLocationDidChange(self, info):
         self.updateCurrentLocationLayer()
+
+
+class FontManager(Subscriber):
+
+    """
+    This subscriber keeps track of opened/closed fonts
+    and takes care to update the self.fonts dictionary of the design space manager
+    with the right references
+
+    NOT WORKING PROPERLY YET!
+    """
+
+    debug = DEBUG_MODE
+    soonClosingFontPath = None
+
+    def printStatus(self):
+        print('----'*4)
+        for path, eachFont in self.controller.designSpaceManager.fonts.items():
+            print(f'{basename(eachFont.path)}; glyphs amount: {len(eachFont)}; has interface? {eachFont.hasInterface()}')
+        print('----'*4)
+
+    def fontDocumentDidOpen(self, info):
+        print('fontDocumentDidOpen!')
+        # substitute the font without interface with the font with interface
+        fontObj = info['font']
+        self.controller.designSpaceManager.fonts[fontObj.path] = fontObj
+        self.printStatus()
+
+    def fontDocumentWillClose(self, info):
+        # catching this here, because once it's closed we will not be able to access it
+        # from the info notification dictionary
+        self.soonClosingFontPath = info['font'].path
+
+    def fontDocumentDidClose(self, info):
+        print('fontDocumentDidClose!')
+        # substitute the font with interface (closing down) with a freshly opened font without interface
+        # this will make sure that if the user did not save the last edits, the font we're using
+        # will reflect the actual state of the file saved on disk
+        self.controller.designSpaceManager.fonts[self.soonClosingFontPath] = OpenFont(self.soonClosingFontPath, showInterface=False)
+        self.soonClosingFontPath = None
+        self.printStatus()
 
 
 # -- Instructions -- #
