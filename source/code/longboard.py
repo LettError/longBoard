@@ -215,7 +215,7 @@ class GlyphEditorSubscriber(Subscriber):
         print(f"glyphObj: {glyphObj}")
 
         # working mutator
-        if glyphObj is not None:
+        if glyphObj:
             print("working mutator!")
             self.sourcesLayer.clearSublayers()
             randomizeLayerColors(layer=self.previewLayer)
