@@ -26,7 +26,8 @@ from customEvents import TOOL_KEY, DEBUG_MODE
 
 """
 Notes:
-    - the live preview now works only if fonts are opened in RF (with interface) before launching longboard
+- the broken mutator preview only works with mutatorMath
+
 """
 
 
