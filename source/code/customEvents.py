@@ -62,6 +62,8 @@ if __name__ == '__main__':
             debug=DEBUG_MODE
         )
 
+    # this event is triggered when the main controller closes
+    # so we can "manually" close the SpaceWindow and the MultiLineView
     eventName = f"{TOOL_KEY}.controllerWillClose"
     if eventName not in subscriberEvents:
         registerSubscriberEvent(

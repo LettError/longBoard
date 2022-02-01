@@ -42,6 +42,18 @@ def randomizeLayerColors(layer):
 
 class Controller(WindowController):
 
+    """
+    The controller own the main LongBoard UI window
+    and every object of the tool own an attribute self.controller pointing
+    to this object
+
+    In this way every part of the tool can access to other objects, for example
+    if the SpaceWindow needs a make a preview using a mutator, it can access the
+    DesignSpaceManager in this way
+    self.controller.designSpaceManager.makePresentation()
+
+    """
+
     debug = DEBUG_MODE
     _currentDesignSpaceLocation = None
 
@@ -121,6 +133,15 @@ class Controller(WindowController):
 
 class CurrentGlyphSubscriber(Subscriber):
 
+    """
+    Tracks edits to glyphs, even if not opened in the glyph editor:
+    - space center
+    - kerning
+    - scripting window
+
+    It is used to invalidate the cache of mutator with edited sources
+    """
+
     debug = DEBUG_MODE
     controller = None
 
@@ -148,6 +169,11 @@ class CurrentGlyphSubscriber(Subscriber):
 
 
 class GlyphEditorSubscriber(Subscriber):
+
+    """
+    This subscriber takes care of the preview in the glyph editor
+
+    """
 
     debug = DEBUG_MODE
     controller = None
@@ -226,6 +252,10 @@ class GlyphEditorSubscriber(Subscriber):
 
 class NavigatorTool(BaseEventTool):
 
+    """
+    This tool can update the design space location displayed in preview by LongBoard
+    """
+
     def setup(self):
         print('navigator tool setup')
 
@@ -241,6 +271,13 @@ class NavigatorTool(BaseEventTool):
 
 
 class SpaceWindow(Subscriber, WindowController):
+
+    """
+    This window controller own a separate window where the geometry of the design space is displayed
+    and receives a notification when
+        - the main controller closes, so it can close its own window
+        - when the displyed design space location changes
+    """
 
     debug = DEBUG_MODE
     controller = None
