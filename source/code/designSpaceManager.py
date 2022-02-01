@@ -109,9 +109,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             else:
                 new.append((location, self.mathGlyphClass(glyphObj)))
 
-        newMutator = None
+        # RA: this is named optional because it might be None (if incompatible sources)
+        optionalMutator = None
         try:
-            bias, newMutator = self.getVariationModel(new, axes=self.serializedAxes,
+            bias, optionalMutator = self.getVariationModel(new, axes=self.serializedAxes,
                                                            bias=self.newDefaultLocation(bend=True))  # xx
 
         # RA: I tried to make some source incompatible (by adding a point to a contour)
@@ -127,12 +128,8 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             #     represent the current state correctly
             self.invalidateCache(glyphName)
 
-            # RA: I am not sure this is the best approach to signal to the longboard controller
-            #     that the mutator is broken, we can find a better solution
-            newMutator = False
-
         # RA: conditional removed, we either insert a working mutator or False, check above!
-        self._glyphMutators[cacheKey] = newMutator
+        self._glyphMutators[cacheKey] = optionalMutator
 
     def getGlyphMutator(self, glyphName, decomposeComponents=False):
         # make a mutator / varlib object for glyphName.
