@@ -21,7 +21,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
     # this is responsible for 1 designspace document.
     # keep track of fonts opening and closing
     # build and cache mutators for all things
-    # make presentation layers when a glypheditor asks for it
+    # make glyphMath objects when the main controller asks for it
     # all the math will happen here
 
     def _instantiateFont(self, path):
