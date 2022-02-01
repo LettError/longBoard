@@ -226,7 +226,7 @@ class GlyphEditorSubscriber(Subscriber):
         else:
             print("broken mutator!")
             self.sourcesLayer.clearSublayers()
-            self.previewLayer.clearSublayers()
+            self.previewLayer.getPen()    # not ideal, trying to clear the preview layer
 
             sources = self.controller.designSpaceManager.collectMastersForGlyph(glyphName, decomposeComponents=True)
 
