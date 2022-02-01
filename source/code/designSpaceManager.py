@@ -84,7 +84,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             loc[axis.name] = lerp(axis.minimum, axis.maximum, .5)
         return loc
 
-    def invalidateCache(self, glyphName):
+    def clearCache(self):
+        self._glyphMutators.clear()
+
+    def invalidateGlyphCache(self, glyphName):
         print(f'invalidateCache: {glyphName}')
         cacheKey = (glyphName, True)   # the boolean value refers to `decomposeComponents`
         if cacheKey in self._glyphMutators:

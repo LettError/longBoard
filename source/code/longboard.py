@@ -78,7 +78,6 @@ class Controller(WindowController):
 
         MultiLineView.controller = self
         registerRoboFontSubscriber(MultiLineView)
-        self.multiLineWindow = MultiLineView()
 
         GlyphEditorSubscriber.controller = self
         registerGlyphEditorSubscriber(GlyphEditorSubscriber)
@@ -116,6 +115,7 @@ class Controller(WindowController):
     # controls callbacks
     def varModelRadioCallback(self, sender):
         self.designSpaceManager.useVarlib = True if sender.get() == 'varLib' else False
+        self.designSpaceManager.clearCache()
         postEvent(f"{TOOL_KEY}.varModelDidChange")
 
     # temp
@@ -149,7 +149,7 @@ class CurrentGlyphSubscriber(Subscriber):
     def currentGlyphDidChangeMetrics(self, info):
         print('currentGlyphDidChangeMetrics')
         glyphName = info['glyph'].name
-        self.controller.designSpaceManager.invalidateCache(glyphName)
+        self.controller.designSpaceManager.invalidateGlyphCache(glyphName)
         self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
@@ -157,7 +157,7 @@ class CurrentGlyphSubscriber(Subscriber):
     def currentGlyphDidChangeContours(self, info):
         print('currentGlyphDidChangeContours')
         glyphObj = info['glyph']
-        self.controller.designSpaceManager.invalidateCache(glyphObj.name)
+        self.controller.designSpaceManager.invalidateGlyphCache(glyphObj.name)
         self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphObj)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphObj.name)
 
@@ -165,7 +165,7 @@ class CurrentGlyphSubscriber(Subscriber):
         mapping = glyph.font.getReverseComponentMapping()
         if glyph.name in mapping:
             for componentName in mapping[glyph.name]:
-                self.controller.designSpaceManager.invalidateCache(componentName)
+                self.controller.designSpaceManager.invalidateGlyphCache(componentName)
 
 
 class GlyphEditorSubscriber(Subscriber):
@@ -333,14 +333,6 @@ class SpaceWindow(Subscriber, WindowController):
 
     def currentDesignSpaceLocationDidChange(self, info):
         self.updateCurrentLocationLayer()
-
-    # def glyphMutatorDidChange(self, info):
-    #     print('glyphMutatorDidChange start')
-    #     print(info)
-    #     if self.glyphName == info['glyphName']:
-    #         print('matching')
-    #         self.updateCurrentLocationLayer()
-    #     print('glyphMutatorDidChange end')
 
 
 # -- Instructions -- #
