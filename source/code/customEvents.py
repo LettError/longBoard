@@ -62,7 +62,6 @@ if __name__ == '__main__':
             debug=DEBUG_MODE
         )
 
-    # var model
     eventName = f"{TOOL_KEY}.controllerWillClose"
     if eventName not in subscriberEvents:
         registerSubscriberEvent(
