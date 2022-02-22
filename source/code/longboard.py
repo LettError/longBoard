@@ -46,7 +46,7 @@ class Controller(WindowController):
 
     """
     The controller own the main LongBoard UI window
-    and every object of the tool own an attribute self.controller pointing
+    and every object of the tool owns an attribute self.controller pointing
     to this object
 
     In this way every part of the tool can access to other objects, for example
@@ -58,6 +58,7 @@ class Controller(WindowController):
 
     debug = DEBUG_MODE
     _currentDesignSpaceLocation = None
+    _displayedLocationsOnMultiLineView = []
 
     def build(self):
         self.w = FloatingWindow((300, 80), "Controller")
@@ -119,6 +120,10 @@ class Controller(WindowController):
     def currentDesignSpaceLocation(self, value):
         self._currentDesignSpaceLocation = value
         postEvent(f"{TOOL_KEY}.currentDesignSpaceLocationDidChange")
+
+    @property
+    def displayedLocationsOnMultiLineView(self):
+        return self._displayedLocationsOnMultiLineView
 
     # controls callbacks
     def varModelRadioCallback(self, sender):
@@ -219,8 +224,7 @@ class GlyphEditorSubscriber(Subscriber):
             print("working mutator!")
             self.sourcesLayer.clearSublayers()
             randomizeLayerColors(layer=self.previewLayer)
-            pen = self.previewLayer.getPen()
-            glyphObj.draw(pen)
+            self.previewLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
 
         # broken mutator
         else:
@@ -241,8 +245,7 @@ class GlyphEditorSubscriber(Subscriber):
                 glyphLayer.addScaleTransformation(value=(0.25, 0.25), name="scaleDownToThumbnails")
                 glyphLayer.addTranslationTransformation(value=(xx, 0), name="advanceWidth")
 
-                pen = glyphLayer.getPen()
-                mathGlyph.draw(pen)
+                glyphLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
                 xx += mathGlyph.width
 
     def varModelDidChange(self, info):
@@ -336,8 +339,7 @@ class SpaceWindow(Subscriber, WindowController):
     def updateCurrentLocationLayer(self):
         print('updateCurrentLocationLayer')
         glyphObj = self.controller.designSpaceManager.makePresentation(self.glyphName, self.controller.currentDesignSpaceLocation)
-        pen = self.currentDesignSpaceLocationLayer.getPen()
-        glyphObj.draw(pen)
+        self.currentDesignSpaceLocationLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
 
     def currentDesignSpaceLocationDidChange(self, info):
         self.updateCurrentLocationLayer()
