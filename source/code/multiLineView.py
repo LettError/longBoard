@@ -5,20 +5,28 @@
 # --------------- #
 
 # -- Modules -- #
+import itertools
 from collections import defaultdict
 from pathlib import Path
 from difflib import Differ
+from collections.abc import MutableMapping
 
 from mojo.subscriber import Subscriber, WindowController
 from mojo.subscriber import registerRoboFontSubscriber
 from mojo.UI import splitText
-from vanilla import Window, EditText, VerticalStackView
+from vanilla import Window, EditText, VerticalStackView, Button
+from vanilla import HorizontalStackView
 from merz import MerzView
 
 from tools import windowed
 from designSpaceManager import DesignSpaceManager
 from customEvents import DEBUG_MODE
 
+"""
+Notes:
+- it would be great to have a design space character mapping (shared among sources)
+
+"""
 
 # -- Constants -- #
 BLACK = 0, 0, 0, 1
@@ -28,14 +36,104 @@ TRANSPARENT = 0, 0, 0, 0
 
 
 # -- Objects -- #
+def fromDictToTuple(location):
+    """
+    Sometimes we need to use locations as immutable keys of a dict
+    """
+    toBeFreezed = []
+    for axisName, value in sorted(location.items(), key=lambda x: x[0]):
+        toBeFreezed.append((axisName, value))
+    return tuple(toBeFreezed)
+
+def fromTupleToDict(frozenLocation):
+    """
+    Sometimes we need to go back from immutable keys to regular design space locations
+    """
+    location = {}
+    for axisName, value in frozenLocation:
+        location[axisName] = value
+    return location
+
+
+class Info:
+    unitsPerEm = 1000
+
+
+class LongBoardMathFont(MutableMapping):
+
+    kerning = None
+    charMap = defaultdict(set)
+
+    def __init__(self, frozenLocation):
+        self.store = dict()
+        self.frozenLocation = frozenLocation
+
+        # hack
+        self.info = Info()
+
+    def __getitem__(self, glyphName):
+        return self.store[glyphName]
+
+    def __setitem__(self, glyphName, glyphObj):
+        if glyphObj.unicodes:
+            for eachCode in glyphObj.unicodes:
+                self.charMap[eachCode].add(glyphName)
+        self.store[glyphName] = glyphObj
+
+    def __delitem__(self, glyphName):
+        for eachPair in self.kerning.keys():
+            if glyphName in eachPair:
+                del self.kerning[eachPair]
+        self._removeFromCharMap(glyphName)
+        del self.store[glyphName]
+
+    def __iter__(self):
+        return iter(self.store)
+
+    def __len__(self):
+        return len(self.store)
+
+    def injectKerningFrom(self, designSpace):
+        possiblePairs = list(itertools.product(self.keys(), self.keys()))
+        mutator = designSpace.getKerningMutator(pairs=possiblePairs)
+        self.kerning = mutator.makeInstance(fromTupleToDict(self.frozenLocation))
+
+    # the following methods make LongBoardMathFont compatible with RFont
+    def getCharacterMapping(self):
+        return self.charMap
+
+    def getFlatKerning(self):
+        return self.kerning
+
+    # internals
+    def _removeFromCharMap(self, glyphName):
+        for uniCode, names in self.charMap.items():
+            if glyphName in names:
+                if len(names) == 1:
+                    del self.charMap[uniCode]
+                else:
+                    self.charMap[uniCode].remove(glyphName)
+
+
 class MockController():
 
+    _displayedLocationsOnMultiLineView = []
+
     def __init__(self):
+        self.designSpaceManager = DesignSpaceManager()
         self.loadTestDocument()
+
+        for ii in range(5):
+            loc = self.designSpaceManager._test_randomLocation()
+            self._displayedLocationsOnMultiLineView.append(loc)
+        self._displayedLocationsOnMultiLineView.append({'width': 10, 'weight': 0})
+
+    @property
+    def displayedLocationsOnMultiLineView(self):
+        return self._displayedLocationsOnMultiLineView
 
     def loadTestDocument(self):
         print('loadTestDocument')
-        self.designSpaceManager = DesignSpaceManager()
         testDocPath = Path.cwd().parent / "resources" / "MutatorSans.designspace"
         self.designSpaceManager.useVarlib = True
         self.designSpaceManager.read(testDocPath)
@@ -48,15 +146,38 @@ class MockController():
 class MultiLineView(Subscriber, WindowController):
 
     debug = DEBUG_MODE
+
     txt = 'AVATAR'
+    # invalidCache = False
     controller = None
-    fonts_2_boxes = defaultdict(list)
+
+    frozenLoc_2_boxes = defaultdict(list)
+
+    # this work as a container for real fonts (defcon, fontparts) or pseudo fonts, dictionaries of custom MathGlyphs
+    # these "font" objects must respect:
+    # - a dict like structure, glyph names: glyph obj
+    # - the glyph object must be able to execute a getRepresentation("merz.CGPath") method
+    longBoardFonts = dict()
 
     def build(self):
         self.w = Window((600, 400), "MultiLineView", minSize=(200, 40))
-        self.editText = EditText((10, 10, -10, 22), text=self.txt,
+
+        self.editText = EditText("auto",
+                                 text=self.txt,
                                  callback=self.editTextCallback)
-        self.view = MerzView(
+        self.refreshButton = Button("auto", "Refresh", callback=self.refreshButtonCallback)
+        self.invalidateCacheButton = Button("auto", "Invalidate Cache", callback=self.invalidateCacheButtonCallback)
+
+        self.ctrlsView = HorizontalStackView((0, 0, 0, 0),
+                                             views=[dict(view=self.editText),
+                                                    dict(view=self.refreshButton),
+                                                    dict(view=self.invalidateCacheButton)],
+                                             spacing=10,
+                                             alignment='center',
+                                             distribution='fillProportionally',
+                                             edgeInsets=(0, 0, 0, 0))
+
+        self.textView = MerzView(
             "auto",
             backgroundColor=(1, 1, 1, 1),
             delegate=self
@@ -64,45 +185,104 @@ class MultiLineView(Subscriber, WindowController):
         self.w.stack = VerticalStackView(
             (0, 0, 0, 0),
             views=[
-                dict(view=self.editText),
-                dict(view=self.view)
+                dict(view=self.ctrlsView, height=22),
+                dict(view=self.textView)
             ],
             spacing=10,
             edgeInsets=(10, 10, 10, 10)
         )
-        self.container = self.view.getMerzContainer()
+        self.container = self.textView.getMerzContainer()
         self.w.open()
 
     def editTextCallback(self, sender):
         self.updateView(prevTxt=self.txt, currentTxt=sender.get())
         self.txt = sender.get()
 
+    def refreshButtonCallback(self, sender):
+        self.longBoardFonts.clear()
+        self.updateView(prevTxt='', currentTxt=self.txt)
+        self.invalidCache = False
+
+    def invalidateCacheButtonCallback(self, sender):
+        self.invalidCache = True
+
+    @property
+    def invalidCache(self):
+        return self._invalidCache
+
+    @invalidCache.setter
+    def invalidCache(self, value):
+        self._invalidCache = value
+        self.invalidationLayer.setVisible(self._invalidCache)
+
     def started(self):
-        self.createFontLayers()
+        self.addGlyphs(self.txt)
+
+        self.fontsLayers = self.container.appendBaseSublayer()
+        self.populateFontsLayers()
+
+        self.invalidationLayer = self.container.appendBaseSublayer()
+        self.invalidCache = False
+        self.drawInvalidationLayer()
+
         self.updateView(prevTxt='', currentTxt=self.txt)
 
+    def drawInvalidationLayer(self):
+        self.invalidationLayer.appendRectangleSublayer(
+            name='invalidationLayerBackground',
+            position=(0, 0),
+            size=(self.textView.width(), self.textView.height()),
+            fillColor=(1, 0, 0, 0.25)
+        )
+        self.invalidationLayer.appendLineSublayer(
+            name='invalidationLayerDiagonalOne',
+            startPoint=(0, 0),
+            endPoint=(self.textView.width(), self.textView.height()),
+            strokeColor=(1, 0, 0, 1),
+            strokeWidth=3
+        )
+        self.invalidationLayer.appendLineSublayer(
+            name='invalidationLayerDiagonalTwo',
+            startPoint=(0, self.textView.height()),
+            endPoint=(self.textView.width(), 0),
+            strokeColor=(1, 0, 0, 1),
+            strokeWidth=3
+        )
+
+    def updateInvalidationLayer(self):
+        with self.invalidationLayer.propertyGroup():
+            background = self.invalidationLayer.getSublayer(name='invalidationLayerBackground')
+            background.setSize((self.textView.width(), self.textView.height()))
+            diagonalOne = self.invalidationLayer.getSublayer(name='invalidationLayerDiagonalOne')
+            diagonalOne.setStartPoint((0, 0))
+            diagonalOne.setEndPoint((self.textView.width(), self.textView.height()))
+            diagonalTwo = self.invalidationLayer.getSublayer(name='invalidationLayerDiagonalTwo')
+            diagonalTwo.setStartPoint((0, self.textView.height()))
+            diagonalTwo.setEndPoint((self.textView.width(), 0))
+
     def sizeChanged(self, sender):
-        fonts = self.controller.designSpaceManager.fonts
-        fontLayerHgt = self.view.height()/len(fonts)
-        if len(self.container.getSublayers()) > 0:
-            with self.container.propertyGroup():
-                for index, (fontName, fontObj) in enumerate(fonts.items()):
-                    fontLayer = self.container.getSublayer(name=fontName)
+        if not self.longBoardFonts:
+            return
+        self.updateInvalidationLayer()
+        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        if len(self.fontsLayers.getSublayers()) > 0:
+            with self.fontsLayers.propertyGroup():
+                for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
+                    fontLayer = self.fontsLayers.getSublayer(name=str(frozenLocation))
                     fontLayer.setPosition((0, index*fontLayerHgt))
-                    fontLayer.setSize((self.view.width(), fontLayerHgt))
+                    fontLayer.setSize((self.textView.width(), fontLayerHgt))
                     scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
                     for eachGlyphBox in fontLayer.getSublayers():
                         eachGlyphBox.removeTransformation(name="scale")
                         eachGlyphBox.addScaleTransformation(scalingFactor)
 
-    def createFontLayers(self):
-        fonts = self.controller.designSpaceManager.fonts
-        fontLayerHgt = self.view.height()/len(fonts)
-        for index, (fontName, fontObj) in enumerate(fonts.items()):
-            self.container.appendRectangleSublayer(
-                name=fontName,
+    def populateFontsLayers(self):
+        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        for index, eachLocation in enumerate(self.controller.displayedLocationsOnMultiLineView):
+            self.fontsLayers.appendRectangleSublayer(
+                name=str(fromDictToTuple(eachLocation)),
                 position=(0, index*fontLayerHgt),
-                size=(self.view.width(), fontLayerHgt),
+                size=(self.textView.width(), fontLayerHgt),
                 strokeColor=RED,
                 fillColor=WHITE,
                 strokeWidth=1
@@ -114,6 +294,15 @@ class MultiLineView(Subscriber, WindowController):
         # otherwise it will stay open after longboard has been closed by the user
         self.w.close()
 
+    def addGlyphs(self, glyphNames):
+        for eachLoc in self.controller.displayedLocationsOnMultiLineView:
+            frozenLocation = fromDictToTuple(eachLoc)
+            eachFont = self.longBoardFonts[frozenLocation] if frozenLocation in self.longBoardFonts else LongBoardMathFont(frozenLocation=frozenLocation)
+            for eachGlyphName in glyphNames:
+                eachFont[eachGlyphName] = self.controller.designSpaceManager.makePresentation(eachGlyphName, eachLoc)
+            eachFont.injectKerningFrom(self.controller.designSpaceManager)
+            self.longBoardFonts[frozenLocation] = eachFont
+
     def updateView(self, prevTxt, currentTxt):
         """this should work through a diff, to avoid refreshing the entire stack of layers, what might change:
             - chars in edit text (one less, one more, copy paste of an entire different string)
@@ -121,17 +310,18 @@ class MultiLineView(Subscriber, WindowController):
             - currentLocation
         --> check the diffStrings.py example in the experiments folder
         """
+
         differ = Differ()
-        fonts = self.controller.designSpaceManager.fonts
-        fontLayerHgt = self.view.height()/len(fonts)
+        prevGlyphNames = splitText(prevTxt, {})
+        glyphNames = splitText(currentTxt, {})
 
-        with self.container.propertyGroup():
-            for index, (fontName, fontObj) in enumerate(fonts.items()):
-                fontLayer = self.container.getSublayer(name=fontName)
+        self.addGlyphs(glyphNames)
+
+        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        with self.fontsLayers.propertyGroup():
+            for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
+                fontLayer = self.fontsLayers.getSublayer(name=str(frozenLocation))
                 scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
-
-                prevGlyphNames = splitText(prevTxt, fontObj.getCharacterMapping())
-                glyphNames = splitText(currentTxt, fontObj.getCharacterMapping())
 
                 xx = 0
                 layerIndex = 0
@@ -142,9 +332,9 @@ class MultiLineView(Subscriber, WindowController):
 
                     # remove
                     if sign == '-':
-                        glyphBoxLayer = self.fonts_2_boxes[fontName][layerIndex]
+                        glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         fontLayer.removeSublayer(glyphBoxLayer)
-                        del self.fonts_2_boxes[fontName][layerIndex]
+                        del self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         prevRemoved = True
 
                     # insert
@@ -157,7 +347,7 @@ class MultiLineView(Subscriber, WindowController):
                             strokeWidth=1
                         )
                         glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
-                        self.fonts_2_boxes[fontName].insert(layerIndex, glyphBoxLayer)
+                        self.frozenLoc_2_boxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
 
                         glyphPathLayer = glyphBoxLayer.appendPathSublayer(
                             fillColor=BLACK
@@ -169,7 +359,7 @@ class MultiLineView(Subscriber, WindowController):
 
                     # common, we only adjust xx position if necessary
                     elif sign == ' ':
-                        glyphBoxLayer = self.fonts_2_boxes[fontName][layerIndex]
+                        glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         glyphBoxLayer.setPosition((xx, 0))
                         xx += glyphObj.width
                         layerIndex += 1 if not prevRemoved else 0
@@ -179,14 +369,14 @@ class MultiLineView(Subscriber, WindowController):
                         raise NotImplementedError(f"difflib issue! {name}")
 
                 # applying kerning after the diffing
-                if len(glyphNames) > 2:
+                if len(glyphNames) >= 2:
                     flatKerning = fontObj.getFlatKerning()
                     correction = 0
                     for lftIndex, rgtIndex in windowed(range(len(glyphNames)), 2):
                         pair = glyphNames[lftIndex], glyphNames[rgtIndex]
                         if pair in flatKerning:
                             correction += flatKerning[pair]
-                        boxLayer = self.fonts_2_boxes[fontName][rgtIndex]
+                        boxLayer = self.frozenLoc_2_boxes[frozenLocation][rgtIndex]
                         prevX, prevY = boxLayer.getPosition()
                         boxLayer.setPosition((prevX+correction, prevY))
 
