@@ -12,11 +12,28 @@ import os
 from mojo.roboFont import AllFonts, RFont
 import ufoProcessor
 
+from merz import MerzPen
+from fontMath import MathGlyph
+
+
+# -- Helpers -- #
 def lerp(a, b, f):
-    return a + (b-a) * f
+    return a + (b - a) * f
 
 
-# -- Object -- #
+# -- Objects -- #
+class LongBoardMathGlyph(MathGlyph):
+
+    _cgPath = None
+    def getRepresentation(self, name, **kwargs):
+        if name == "merz.CGPath":
+            if self._cgPath is None:
+                pen = MerzPen(None)
+                self.draw(pen)
+                self._cgPath = pen.path
+            return self._cgPath
+
+
 class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
     # this is responsible for 1 designspace document.
     # keep track of fonts opening and closing
@@ -30,6 +47,12 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             if f.path == path and f.path is not None:
                 return f
         return RFont(path, showInterface=False)
+
+    def isSource(self, location):
+        for eachSourceDescriptor in self.sources:
+            if location == eachSourceDescriptor.location:
+                return True, eachSourceDescriptor.font
+        return False, None
 
     def loadFonts(self, reload_=False):
         print('loadFonts')
@@ -143,13 +166,16 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # fc1 = (0, 0.4, 1, 0.05)
         # fc2 = (0.3, 0.4, 0, 0.1)
         # _drawAllMasters = False
-
-        glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
-        print(f'glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}')
-        if glyphMutator is None:
-            # huh nothing works
-            return
-        return glyphMutator.makeInstance(location, bend=bend)
+        status, font = self.isSource(location=location)
+        if status:
+            return font[glyphName]
+        else:
+            glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
+            print(f'glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}')
+            if glyphMutator is None:
+                # huh nothing works
+                return
+            return LongBoardMathGlyph(glyphMutator.makeInstance(location, bend=bend))
 
         # if _drawAllMasters:
         #     # draw the other outlines
