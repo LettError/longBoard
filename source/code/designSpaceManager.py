@@ -117,6 +117,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             del self._glyphMutators[cacheKey]
 
     def updateGlyphMutator(self, glyphName, decomposeComponents=False):
+
+        """
+        Here we should take care of decomposing the glyph for display
+        """
         cacheKey = (glyphName, decomposeComponents)
         items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
 
@@ -166,6 +170,8 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # fc1 = (0, 0.4, 1, 0.05)
         # fc2 = (0.3, 0.4, 0, 0.1)
         # _drawAllMasters = False
+
+        # not properly working
         status, font = self.isSource(location=location)
         if status:
             return font[glyphName]

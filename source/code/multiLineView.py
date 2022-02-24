@@ -95,6 +95,7 @@ class LongBoardMathFont(MutableMapping):
 
     def injectKerningFrom(self, designSpace):
         possiblePairs = list(itertools.product(self.keys(), self.keys()))
+        # check which lib is used to calculate this
         mutator = designSpace.getKerningMutator(pairs=possiblePairs)
         self.kerning = mutator.makeInstance(fromTupleToDict(self.frozenLocation))
 
