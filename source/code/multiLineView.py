@@ -214,62 +214,31 @@ class MultiLineView(Subscriber, WindowController):
     @invalidCache.setter
     def invalidCache(self, value):
         self._invalidCache = value
-        self.invalidationLayer.setVisible(self._invalidCache)
+        if value:
+            self.container.appendFilter(
+                dict(name="gaussianBlur",
+                     filterType="gaussianBlur",
+                     radius=10)
+            )
+        else:
+            if self.container.getFilter(name="gaussianBlur"):
+                self.container.removeFilter(name="gaussianBlur")
+        self.editText.enable(not value)
 
     def started(self):
         self.addGlyphs(self.txt)
-
-        self.fontsLayers = self.container.appendBaseSublayer()
         self.populateFontsLayers()
-
-        self.invalidationLayer = self.container.appendBaseSublayer()
         self.invalidCache = False
-        self.drawInvalidationLayer()
-
         self.updateView(prevTxt='', currentTxt=self.txt)
-
-    def drawInvalidationLayer(self):
-        self.invalidationLayer.appendRectangleSublayer(
-            name='invalidationLayerBackground',
-            position=(0, 0),
-            size=(self.textView.width(), self.textView.height()),
-            fillColor=(1, 0, 0, 0.25)
-        )
-        self.invalidationLayer.appendLineSublayer(
-            name='invalidationLayerDiagonalOne',
-            startPoint=(0, 0),
-            endPoint=(self.textView.width(), self.textView.height()),
-            strokeColor=(1, 0, 0, 1),
-            strokeWidth=3
-        )
-        self.invalidationLayer.appendLineSublayer(
-            name='invalidationLayerDiagonalTwo',
-            startPoint=(0, self.textView.height()),
-            endPoint=(self.textView.width(), 0),
-            strokeColor=(1, 0, 0, 1),
-            strokeWidth=3
-        )
-
-    def updateInvalidationLayer(self):
-        with self.invalidationLayer.propertyGroup():
-            background = self.invalidationLayer.getSublayer(name='invalidationLayerBackground')
-            background.setSize((self.textView.width(), self.textView.height()))
-            diagonalOne = self.invalidationLayer.getSublayer(name='invalidationLayerDiagonalOne')
-            diagonalOne.setStartPoint((0, 0))
-            diagonalOne.setEndPoint((self.textView.width(), self.textView.height()))
-            diagonalTwo = self.invalidationLayer.getSublayer(name='invalidationLayerDiagonalTwo')
-            diagonalTwo.setStartPoint((0, self.textView.height()))
-            diagonalTwo.setEndPoint((self.textView.width(), 0))
 
     def sizeChanged(self, sender):
         if not self.longBoardFonts:
             return
-        self.updateInvalidationLayer()
         fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
-        if len(self.fontsLayers.getSublayers()) > 0:
-            with self.fontsLayers.propertyGroup():
+        if len(self.container.getSublayers()) > 0:
+            with self.container.propertyGroup():
                 for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
-                    fontLayer = self.fontsLayers.getSublayer(name=str(frozenLocation))
+                    fontLayer = self.container.getSublayer(name=str(frozenLocation))
                     fontLayer.setPosition((0, index*fontLayerHgt))
                     fontLayer.setSize((self.textView.width(), fontLayerHgt))
                     scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
@@ -280,7 +249,7 @@ class MultiLineView(Subscriber, WindowController):
     def populateFontsLayers(self):
         fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
         for index, eachLocation in enumerate(self.controller.displayedLocationsOnMultiLineView):
-            self.fontsLayers.appendRectangleSublayer(
+            self.container.appendRectangleSublayer(
                 name=str(fromDictToTuple(eachLocation)),
                 position=(0, index*fontLayerHgt),
                 size=(self.textView.width(), fontLayerHgt),
@@ -319,9 +288,9 @@ class MultiLineView(Subscriber, WindowController):
         self.addGlyphs(glyphNames)
 
         fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
-        with self.fontsLayers.propertyGroup():
+        with self.container.propertyGroup():
             for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
-                fontLayer = self.fontsLayers.getSublayer(name=str(frozenLocation))
+                fontLayer = self.container.getSublayer(name=str(frozenLocation))
                 scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
 
                 xx = 0
