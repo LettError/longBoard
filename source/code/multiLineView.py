@@ -166,7 +166,7 @@ class MultiLineView(Subscriber, WindowController):
         self.editText = EditText("auto",
                                  text=self.txt,
                                  callback=self.editTextCallback)
-        self.refreshButton = Button("auto", "Refresh", callback=self.refreshButtonCallback)
+        self.refreshButton = Button("auto", chr(8634), callback=self.refreshButtonCallback)
         self.invalidateCacheButton = Button("auto", "Invalidate Cache", callback=self.invalidateCacheButtonCallback)
 
         self.ctrlsView = HorizontalStackView((0, 0, 0, 0),
