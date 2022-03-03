@@ -24,12 +24,6 @@ reload(designSpaceManager)
 from customEvents import DEBUG_MODE
 from designSpaceManager import DesignSpaceManager
 
-"""
-Notes:
-- it would be great to have a design space character mapping (shared among sources)
-
-"""
-
 # -- Constants -- #
 BLACK = 0, 0, 0, 1
 RED = 1, 0, 0, 1
