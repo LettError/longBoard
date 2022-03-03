@@ -23,7 +23,7 @@ from mojo.subscriber import (
     unregisterGlyphEditorSubscriber,
     unregisterRoboFontSubscriber,
 )
-from vanilla import FloatingWindow, RadioGroup, Window
+from vanilla import FloatingWindow, List, RadioGroup, VerticalStackView, Window
 
 from customEvents import DEBUG_MODE, TOOL_KEY
 from designSpaceManager import DesignSpaceManager
@@ -63,15 +63,37 @@ class Controller(WindowController):
 
     debug = DEBUG_MODE
     _currentDesignSpaceLocation = None
-    _displayedLocationsOnMultiLineView = []
+    _displayedLocationsOnMultiLineView = [
+        {"width": 54, "weight": 391},
+        {"width": 132, "weight": 272},
+        {"width": 451, "weight": 942},
+        {"width": 333, "weight": 741},
+        {"width": 94, "weight": 650},
+        {"width": 0, "weight": 0},
+    ]
 
     def build(self):
-        self.w = FloatingWindow((300, 80), "Controller")
-        self.w.varModelRadio = RadioGroup(
+        self.w = FloatingWindow((300, 220), "Controller", minSize=(300, 220))
+        self.varModelRadio = RadioGroup(
             (10, 10, -10, 40), ["varLib", "mutatorMath"], callback=self.varModelRadioCallback
         )
-        # varLib is then selected in loadTestDocument()
-        self.w.varModelRadio.set(0)
+        self.varModelRadio.set(0)
+
+        self.designSpaceLocationsList = List(
+            (0, 0, -0, -0),
+            self._displayedLocationsOnMultiLineView,
+            columnDescriptions=[{"title": "width"}, {"title": "weight"}],
+            enableTypingSensitivity=True,
+            enableDelete=True,
+            editCallback=self.designSpaceLocationsCallback,
+        )
+
+        self.w.verticalStack = VerticalStackView(
+            (0, 0, 0, 0),
+            views=[dict(view=self.varModelRadio), dict(view=self.designSpaceLocationsList)],
+            spacing=10,
+            edgeInsets=(10, 10, 10, 10),
+        )
         self.w.open()
 
     def started(self):
@@ -130,18 +152,32 @@ class Controller(WindowController):
     def displayedLocationsOnMultiLineView(self):
         return self._displayedLocationsOnMultiLineView
 
+    @displayedLocationsOnMultiLineView.setter
+    def displayedLocationsOnMultiLineView(self, value):
+        self._displayedLocationsOnMultiLineView = value
+        postEvent(f"{TOOL_KEY}.displayedLocationsOnMultiLineViewDidChange")
+
     # controls callbacks
     def varModelRadioCallback(self, sender):
         self.designSpaceManager.useVarlib = True if sender.get() == "varLib" else False
         self.designSpaceManager.clearCache()
         postEvent(f"{TOOL_KEY}.varModelDidChange")
 
+    def designSpaceLocationsCallback(self, sender):
+        _locations = []
+        for eachRow in sender.get():
+            newRow = {}
+            for key, value in eachRow.items():
+                newRow[key] = float(value)
+            _locations.append(newRow)
+        self.displayedLocationsOnMultiLineView = _locations
+
     # temp
     def loadTestDocument(self):
         print("loadTestDocument")
         self.designSpaceManager = DesignSpaceManager()
         testDocPath = Path.cwd().parent / "resources" / "MutatorSans.designspace"
-        self.designSpaceManager.useVarlib = True
+        self.designSpaceManager.useVarlib = True if self.varModelRadio.get() == "varLib" else False
         self.designSpaceManager.read(testDocPath)
         self.designSpaceManager.loadFonts(reload_=True)
         self._currentDesignSpaceLocation = self.designSpaceManager.newDefaultLocation(bend=True)

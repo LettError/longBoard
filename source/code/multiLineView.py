@@ -181,14 +181,22 @@ class MultiLineView(Subscriber, WindowController):
         self.container = self.textView.getMerzContainer()
         self.w.open()
 
-    def editTextCallback(self, sender):
-        self.updateView(prevTxt=self.txt, currentTxt=sender.get())
-        self.txt = sender.get()
+    def started(self):
+        self.populateFontsLayers()
+        self.invalidCache = False
+        self.updateView(prevTxt="", currentTxt=self.txt)
 
     def refreshButtonCallback(self, sender):
         self.longBoardFonts.clear()
-        self.updateView(prevTxt="", currentTxt=self.txt)
+        self.frozenLoc_2_boxes.clear()
+        self.container.clearSublayers()
+        self.populateFontsLayers()
         self.invalidCache = False
+        self.updateView(prevTxt="", currentTxt=self.txt)
+
+    def editTextCallback(self, sender):
+        self.updateView(prevTxt=self.txt, currentTxt=sender.get())
+        self.txt = sender.get()
 
     def invalidateCacheButtonCallback(self, sender):
         self.invalidCache = True
@@ -201,17 +209,12 @@ class MultiLineView(Subscriber, WindowController):
     def invalidCache(self, value):
         self._invalidCache = value
         if value:
-            self.container.appendFilter(dict(name="gaussianBlur", filterType="gaussianBlur", radius=10))
+            if not self.container.getFilter(name="gaussianBlur"):
+                self.container.appendFilter(dict(name="gaussianBlur", filterType="gaussianBlur", radius=10))
         else:
             if self.container.getFilter(name="gaussianBlur"):
                 self.container.removeFilter(name="gaussianBlur")
         self.editText.enable(not value)
-
-    def started(self):
-        self.addGlyphs(self.txt)
-        self.populateFontsLayers()
-        self.invalidCache = False
-        self.updateView(prevTxt="", currentTxt=self.txt)
 
     def sizeChanged(self, sender):
         if not self.longBoardFonts:
@@ -229,6 +232,9 @@ class MultiLineView(Subscriber, WindowController):
                         eachGlyphBox.addScaleTransformation(scalingFactor)
 
     def populateFontsLayers(self):
+        if len(self.controller.displayedLocationsOnMultiLineView) == 0:
+            return
+
         fontLayerHgt = self.textView.height() / len(self.controller.displayedLocationsOnMultiLineView)
         for index, eachLocation in enumerate(self.controller.displayedLocationsOnMultiLineView):
             self.container.appendRectangleSublayer(
@@ -263,9 +269,11 @@ class MultiLineView(Subscriber, WindowController):
         """this should work through a diff, to avoid refreshing the entire stack of layers, what might change:
             - chars in edit text (one less, one more, copy paste of an entire different string)
             - fonts?
-            - currentLocation
         --> check the diffStrings.py example in the experiments folder
         """
+
+        if len(self.controller.displayedLocationsOnMultiLineView) == 0:
+            return
 
         differ = Differ()
         prevGlyphNames = splitText(prevTxt, self.controller.designSpaceManager.characterMapping)
@@ -334,8 +342,11 @@ class MultiLineView(Subscriber, WindowController):
                         prevX, prevY = boxLayer.getPosition()
                         boxLayer.setPosition((prevX + correction, prevY))
 
-    def currentDesignSpaceLocationDidChange(self, info):
-        pass
+    def displayedLocationsOnMultiLineViewDidChange(self, info):
+        self.refreshButtonCallback(sender=None)
+
+    def varModelDidChange(self, info):
+        self.refreshButtonCallback(sender=None)
 
 
 if __name__ == "__main__":
