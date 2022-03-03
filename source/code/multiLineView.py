@@ -9,7 +9,6 @@ import itertools
 from collections import defaultdict
 from collections.abc import MutableMapping
 from difflib import Differ
-from importlib import reload
 from pathlib import Path
 
 from merz import MerzView
@@ -17,12 +16,9 @@ from mojo.subscriber import Subscriber, WindowController, registerRoboFontSubscr
 from mojo.UI import splitText
 from vanilla import Button, EditText, HorizontalStackView, VerticalStackView, Window
 
-import designSpaceManager
-from tools import windowed
-
-reload(designSpaceManager)
 from customEvents import DEBUG_MODE
 from designSpaceManager import DesignSpaceManager
+from tools import windowed
 
 # -- Constants -- #
 BLACK = 0, 0, 0, 1
