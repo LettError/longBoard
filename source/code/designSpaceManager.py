@@ -5,15 +5,15 @@
 # -------------------- #
 
 # -- Modules -- #
-from pprint import pprint
-import random
 import os
+import random
+from pprint import pprint
 
-from mojo.roboFont import AllFonts, RFont
 import ufoProcessor
-
-from merz import MerzPen
 from fontMath import MathGlyph
+from merz import MerzPen
+from mojo.pens import DecomposePointPen
+from mojo.roboFont import AllFonts, RFont
 
 
 # -- Helpers -- #
@@ -25,6 +25,7 @@ def lerp(a, b, f):
 class LongBoardMathGlyph(MathGlyph):
 
     _cgPath = None
+
     def getRepresentation(self, name, **kwargs):
         if name == "merz.CGPath":
             if self._cgPath is None:
@@ -42,7 +43,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
     # all the math will happen here
 
     def _instantiateFont(self, path):
-        """ Return an instance of a font object with all the given subclasses"""
+        """Return an instance of a font object with all the given subclasses"""
         for f in AllFonts():
             if f.path == path and f.path is not None:
                 return f
@@ -55,7 +56,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         return False, None
 
     def loadFonts(self, reload_=False):
-        print('loadFonts')
+        print("loadFonts")
         # Load the fonts and find the default candidate based on the info flag
         # pay attention:
         #     1. different sources can reference different layers in the same ufo
@@ -76,10 +77,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                 if sourceDescriptor.path is not None:
                     if os.path.exists(sourceDescriptor.path):
                         if sourceDescriptor.path in currentPaths:
-                            print(f'loadFonts font is open {sourceDescriptor.path}')
+                            print(f"loadFonts font is open {sourceDescriptor.path}")
                             _fonts[sourceDescriptor.name] = currentPaths[sourceDescriptor.path]
                         else:
-                            print(f'loadFonts font is not open {sourceDescriptor.path}')
+                            print(f"loadFonts font is not open {sourceDescriptor.path}")
                             _fonts[sourceDescriptor.name] = RFont(sourceDescriptor.path, showInterface=False)
                         names = names | set(_fonts[sourceDescriptor.name].keys())
                 else:
@@ -104,15 +105,15 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # make a test location at the center of the defined space
         loc = {}
         for axis in self.axes:
-            loc[axis.name] = lerp(axis.minimum, axis.maximum, .5)
+            loc[axis.name] = lerp(axis.minimum, axis.maximum, 0.5)
         return loc
 
     def clearCache(self):
         self._glyphMutators.clear()
 
     def invalidateGlyphCache(self, glyphName):
-        print(f'invalidateCache: {glyphName}')
-        cacheKey = (glyphName, True)   # the boolean value refers to `decomposeComponents`
+        print(f"invalidateCache: {glyphName}")
+        cacheKey = (glyphName, True)  # the boolean value refers to `decomposeComponents`
         if cacheKey in self._glyphMutators:
             del self._glyphMutators[cacheKey]
 
@@ -139,8 +140,9 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # RA: this is named optional because it might be None (if incompatible sources)
         optionalMutator = None
         try:
-            bias, optionalMutator = self.getVariationModel(new, axes=self.serializedAxes,
-                                                           bias=self.newDefaultLocation(bend=True))  # xx
+            bias, optionalMutator = self.getVariationModel(
+                new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)
+            )  # xx
 
         # RA: I tried to make some source incompatible (by adding a point to a contour)
         #     but they throw an IndexError, not a TypeError. Also, the Exception seem to come for somewhere deeper
@@ -177,7 +179,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             return font[glyphName]
         else:
             glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
-            print(f'glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}')
+            print(f"glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}")
             if glyphMutator is None:
                 # huh nothing works
                 return

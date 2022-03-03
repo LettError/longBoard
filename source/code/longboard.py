@@ -5,24 +5,29 @@
 # --------- #
 
 # -- Modules -- #
-from pathlib import Path
 from os.path import basename
+from pathlib import Path
 from random import random
 
 from AppKit import NSImage
-from mojo.subscriber import WindowController, Subscriber
-from mojo.subscriber import registerRoboFontSubscriber, unregisterRoboFontSubscriber
-from mojo.subscriber import registerGlyphEditorSubscriber, unregisterGlyphEditorSubscriber
-from mojo.subscriber import registerCurrentGlyphSubscriber, unregisterCurrentGlyphSubscriber
-
-from mojo.roboFont import OpenWindow, OpenFont
-from mojo.events import BaseEventTool, uninstallTool, installTool, postEvent
-from vanilla import FloatingWindow, Window, RadioGroup
 from merz import MerzView
+from mojo.events import BaseEventTool, installTool, postEvent, uninstallTool
+from mojo.roboFont import OpenFont, OpenWindow
+from mojo.subscriber import (
+    Subscriber,
+    WindowController,
+    registerCurrentGlyphSubscriber,
+    registerGlyphEditorSubscriber,
+    registerRoboFontSubscriber,
+    unregisterCurrentGlyphSubscriber,
+    unregisterGlyphEditorSubscriber,
+    unregisterRoboFontSubscriber,
+)
+from vanilla import FloatingWindow, RadioGroup, Window
 
+from customEvents import DEBUG_MODE, TOOL_KEY
 from designSpaceManager import DesignSpaceManager
 from multiLineView import MultiLineView
-from customEvents import TOOL_KEY, DEBUG_MODE
 
 """
 Notes:
@@ -62,9 +67,9 @@ class Controller(WindowController):
 
     def build(self):
         self.w = FloatingWindow((300, 80), "Controller")
-        self.w.varModelRadio = RadioGroup((10, 10, -10, 40),
-                                          ["varLib", "mutatorMath"],
-                                          callback=self.varModelRadioCallback)
+        self.w.varModelRadio = RadioGroup(
+            (10, 10, -10, 40), ["varLib", "mutatorMath"], callback=self.varModelRadioCallback
+        )
         # varLib is then selected in loadTestDocument()
         self.w.varModelRadio.set(0)
         self.w.open()
@@ -127,13 +132,13 @@ class Controller(WindowController):
 
     # controls callbacks
     def varModelRadioCallback(self, sender):
-        self.designSpaceManager.useVarlib = True if sender.get() == 'varLib' else False
+        self.designSpaceManager.useVarlib = True if sender.get() == "varLib" else False
         self.designSpaceManager.clearCache()
         postEvent(f"{TOOL_KEY}.varModelDidChange")
 
     # temp
     def loadTestDocument(self):
-        print('loadTestDocument')
+        print("loadTestDocument")
         self.designSpaceManager = DesignSpaceManager()
         testDocPath = Path.cwd().parent / "resources" / "MutatorSans.designspace"
         self.designSpaceManager.useVarlib = True
@@ -141,7 +146,7 @@ class Controller(WindowController):
         self.designSpaceManager.loadFonts(reload_=True)
         self._currentDesignSpaceLocation = self.designSpaceManager.newDefaultLocation(bend=True)
         self._currentDesignSpaceLocation = self.designSpaceManager._test_LocationAtCenter()
-        print('self.currentDesignSpaceLocation', self.currentDesignSpaceLocation)
+        print("self.currentDesignSpaceLocation", self.currentDesignSpaceLocation)
 
 
 class CurrentGlyphSubscriber(Subscriber):
@@ -159,17 +164,19 @@ class CurrentGlyphSubscriber(Subscriber):
     controller = None
 
     currentGlyphDidChangeMetricsDelay = 0.2
+
     def currentGlyphDidChangeMetrics(self, info):
-        print('currentGlyphDidChangeMetrics')
-        glyphName = info['glyph'].name
+        print("currentGlyphDidChangeMetrics")
+        glyphName = info["glyph"].name
         self.controller.designSpaceManager.invalidateGlyphCache(glyphName)
         self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphName)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphName)
 
     currentGlyphDidChangeContoursDelay = 0.2
+
     def currentGlyphDidChangeContours(self, info):
-        print('currentGlyphDidChangeContours')
-        glyphObj = info['glyph']
+        print("currentGlyphDidChangeContours")
+        glyphObj = info["glyph"]
         self.controller.designSpaceManager.invalidateGlyphCache(glyphObj.name)
         self.invalidateCacheWhereGlyphIsUsedAsComponent(glyphObj)
         postEvent(f"{TOOL_KEY}.glyphMutatorDidChange", glyphName=glyphObj.name)
@@ -194,11 +201,7 @@ class GlyphEditorSubscriber(Subscriber):
     def build(self):
         glyphEditor = self.getGlyphEditor()
 
-        self.container = glyphEditor.extensionContainer(
-            identifier=TOOL_KEY,
-            location='background',
-            clear=True
-        )
+        self.container = glyphEditor.extensionContainer(identifier=TOOL_KEY, location="background", clear=True)
 
         self.previewLayer = self.container.appendPathSublayer(
             strokeWidth=0.5,
@@ -230,15 +233,13 @@ class GlyphEditorSubscriber(Subscriber):
         else:
             print("broken mutator!")
             self.sourcesLayer.clearSublayers()
-            self.previewLayer.getPen()    # not ideal, trying to clear the preview layer
+            self.previewLayer.getPen()  # not ideal, trying to clear the preview layer
 
             sources = self.controller.designSpaceManager.collectMastersForGlyph(glyphName, decomposeComponents=True)
 
             xx = 0
             for location, mathGlyph, sourceAttributes in sources:
-                glyphLayer = self.sourcesLayer.appendPathSublayer(
-                    strokeWidth=1
-                )
+                glyphLayer = self.sourcesLayer.appendPathSublayer(strokeWidth=1)
 
                 randomizeLayerColors(layer=glyphLayer)
                 glyphLayer.addTranslationTransformation(value=(0, -250), name="moveToBottom")
@@ -249,12 +250,12 @@ class GlyphEditorSubscriber(Subscriber):
                 xx += mathGlyph.width
 
     def varModelDidChange(self, info):
-        print('updating preview because varModel did change')
+        print("updating preview because varModel did change")
         self.updatePreview()
 
     def glyphMutatorDidChange(self, info):
         print(f'listening to this: {info["glyphName"]}')
-        if info['glyphName'] == self.getGlyphEditor().getGlyph().name:
+        if info["glyphName"] == self.getGlyphEditor().getGlyph().name:
             self.updatePreview()
 
     def currentDesignSpaceLocationDidChange(self, info):
@@ -268,7 +269,7 @@ class NavigatorTool(BaseEventTool):
     """
 
     def setup(self):
-        print('navigator tool setup')
+        print("navigator tool setup")
 
     def getToolbarIcon(self):
         return NSImage.imageWithSystemSymbolName_accessibilityDescription_("safari.fill", None)
@@ -292,15 +293,11 @@ class SpaceWindow(Subscriber, WindowController):
 
     debug = DEBUG_MODE
     controller = None
-    glyphName = 'C'
+    glyphName = "C"
 
     def build(self):
         self.w = Window((500, 500), "Space Window")
-        self.w.view = MerzView(
-            (0, 0, 0, 0),
-            backgroundColor=(1, 1, 1, 1),
-            delegate=self
-        )
+        self.w.view = MerzView((0, 0, 0, 0), backgroundColor=(1, 1, 1, 1), delegate=self)
         self.container = self.w.view.getMerzContainer()
         self.designSpaceLayer = self.container.appendBaseSublayer()
         self.currentDesignSpaceLocationLayer = self.container.appendPathSublayer()
@@ -337,8 +334,10 @@ class SpaceWindow(Subscriber, WindowController):
         self.controller.currentDesignSpaceLocation = location
 
     def updateCurrentLocationLayer(self):
-        print('updateCurrentLocationLayer')
-        glyphObj = self.controller.designSpaceManager.makePresentation(self.glyphName, self.controller.currentDesignSpaceLocation)
+        print("updateCurrentLocationLayer")
+        glyphObj = self.controller.designSpaceManager.makePresentation(
+            self.glyphName, self.controller.currentDesignSpaceLocation
+        )
         self.currentDesignSpaceLocationLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
 
     def currentDesignSpaceLocationDidChange(self, info):
@@ -359,25 +358,27 @@ class FontManager(Subscriber):
     soonClosingFontPath = None
 
     def printStatus(self):
-        print('----'*4)
+        print("----" * 4)
         for path, eachFont in self.controller.designSpaceManager.fonts.items():
-            print(f'{basename(eachFont.path)}; glyphs amount: {len(eachFont)}; has interface? {eachFont.hasInterface()}')
-        print('----'*4)
+            print(
+                f"{basename(eachFont.path)}; glyphs amount: {len(eachFont)}; has interface? {eachFont.hasInterface()}"
+            )
+        print("----" * 4)
 
     def fontDocumentDidOpen(self, info):
-        print('fontDocumentDidOpen!')
+        print("fontDocumentDidOpen!")
         # substitute the font without interface with the font with interface
-        fontObj = info['font']
+        fontObj = info["font"]
         self.injectNewFont(fontObj)
         self.printStatus()
 
     def fontDocumentWillClose(self, info):
         # catching this here, because once it's closed we will not be able to access it
         # from the info notification dictionary
-        self.soonClosingFontPath = info['font'].path
+        self.soonClosingFontPath = info["font"].path
 
     def fontDocumentDidClose(self, info):
-        print('fontDocumentDidClose!')
+        print("fontDocumentDidClose!")
         # substitute the font with interface (closing down) with a freshly opened font without interface
         # this will make sure that if the user did not save the last edits, the font we're using
         # will reflect the actual state of the file saved on disk
@@ -398,5 +399,5 @@ class FontManager(Subscriber):
 
 
 # -- Instructions -- #
-if __name__ == '__main__':
+if __name__ == "__main__":
     OpenWindow(Controller)
