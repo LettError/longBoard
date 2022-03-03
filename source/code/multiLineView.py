@@ -61,7 +61,8 @@ class LongBoardMathFont(MutableMapping):
         self.store = dict()
         self.frozenLocation = frozenLocation
 
-        # hack
+        # RA: this is definitely a hack, we cannot always assume a 1000upm grid
+        #     I think this data should come from the design space manager, right?
         self.info = Info()
 
     def __getitem__(self, glyphName):
