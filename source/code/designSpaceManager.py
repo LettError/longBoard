@@ -51,12 +51,6 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                 return f
         return RFont(path, showInterface=False)
 
-    def isSource(self, location):
-        for eachSourceDescriptor in self.sources:
-            if location == eachSourceDescriptor.location:
-                return True, eachSourceDescriptor.font
-        return False, None
-
     def loadFonts(self, reload_=False):
         print("loadFonts")
         # Load the fonts and find the default candidate based on the info flag
