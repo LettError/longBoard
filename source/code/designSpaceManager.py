@@ -173,18 +173,13 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         # fc2 = (0.3, 0.4, 0, 0.1)
         # _drawAllMasters = False
 
-        # not properly working
-        status, font = self.isSource(location=location)
-        if status:
-            return font[glyphName]
-        else:
-            glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
-            print(f"glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}")
-            if glyphMutator is None:
-                # huh nothing works
-                return
-            instance = glyphMutator.makeInstance(location, bend=bend)
-            return LongBoardMathGlyph(instance)
+        glyphMutator = self.getGlyphMutator(glyphName, decomposeComponents=True)
+        print(f"glyphMutator: {glyphName}\n\tid: {id(glyphMutator)}\n\trepr: {glyphMutator}")
+        if glyphMutator is None:
+            # huh nothing works
+            return
+        instance = glyphMutator.makeInstance(location, bend=bend)
+        return LongBoardMathGlyph(instance)
 
         # if _drawAllMasters:
         #     # draw the other outlines
