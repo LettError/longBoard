@@ -15,6 +15,8 @@ from merz import MerzPen
 from mojo.pens import DecomposePointPen
 from mojo.roboFont import AllFonts, RFont
 
+from tools import sharedCharacterMapping
+
 
 # -- Helpers -- #
 def lerp(a, b, f):
@@ -89,6 +91,10 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                     _fonts[sourceDescriptor.name] = None
                     self.problems.append(f"can't load master from {sourceDescriptor.path}")
 
+        self.characterMapping, discarded = sharedCharacterMapping(_fonts.values())
+        self.toolLog.append(
+            f"The following code points cannot be accessed because they are not shared among the sources: {discarded}"
+        )
         self.glyphNames = list(names)
         self._fontsLoaded = True
         self.fonts = _fonts
@@ -123,6 +129,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         Here we should take care of decomposing the glyph for display
         """
         cacheKey = (glyphName, decomposeComponents)
+        print(glyphName)
         items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
 
         # RA: it seems that the second item of each tuple coming from the collectMastersForGlyph method
@@ -130,6 +137,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         #     also, could be a nice idea to change collectMastersForGlyph in something like collectSourcesForGlyph?
         new = []
         for location, glyphObj, sourceAttributes in items:
+            print(glyphObj.components)
             if hasattr(glyphObj, "toMathGlyph"):
                 # note: calling toMathGlyph ignores the mathGlyphClass preference
                 # maybe the self.mathGlyphClass is not necessary?
@@ -142,7 +150,7 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         try:
             bias, optionalMutator = self.getVariationModel(
                 new, axes=self.serializedAxes, bias=self.newDefaultLocation(bend=True)
-            )  # xx
+            )
 
         # RA: I tried to make some source incompatible (by adding a point to a contour)
         #     but they throw an IndexError, not a TypeError. Also, the Exception seem to come for somewhere deeper
@@ -183,7 +191,8 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
             if glyphMutator is None:
                 # huh nothing works
                 return
-            return LongBoardMathGlyph(glyphMutator.makeInstance(location, bend=bend))
+            instance = glyphMutator.makeInstance(location, bend=bend)
+            return LongBoardMathGlyph(instance)
 
         # if _drawAllMasters:
         #     # draw the other outlines

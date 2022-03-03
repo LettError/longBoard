@@ -7,20 +7,22 @@
 # -- Modules -- #
 import itertools
 from collections import defaultdict
-from pathlib import Path
-from difflib import Differ
 from collections.abc import MutableMapping
+from difflib import Differ
+from importlib import reload
+from pathlib import Path
 
-from mojo.subscriber import Subscriber, WindowController
-from mojo.subscriber import registerRoboFontSubscriber
-from mojo.UI import splitText
-from vanilla import Window, EditText, VerticalStackView, Button
-from vanilla import HorizontalStackView
 from merz import MerzView
+from mojo.subscriber import Subscriber, WindowController, registerRoboFontSubscriber
+from mojo.UI import splitText
+from vanilla import Button, EditText, HorizontalStackView, VerticalStackView, Window
 
+import designSpaceManager
 from tools import windowed
-from designSpaceManager import DesignSpaceManager
+
+reload(designSpaceManager)
 from customEvents import DEBUG_MODE
+from designSpaceManager import DesignSpaceManager
 
 """
 Notes:
@@ -44,6 +46,7 @@ def fromDictToTuple(location):
     for axisName, value in sorted(location.items(), key=lambda x: x[0]):
         toBeFreezed.append((axisName, value))
     return tuple(toBeFreezed)
+
 
 def fromTupleToDict(frozenLocation):
     """
@@ -116,7 +119,7 @@ class LongBoardMathFont(MutableMapping):
                     self.charMap[uniCode].remove(glyphName)
 
 
-class MockController():
+class MockController:
 
     _displayedLocationsOnMultiLineView = []
 
@@ -127,28 +130,28 @@ class MockController():
         for ii in range(5):
             loc = self.designSpaceManager._test_randomLocation()
             self._displayedLocationsOnMultiLineView.append(loc)
-        self._displayedLocationsOnMultiLineView.append({'width': 10, 'weight': 0})
+        self._displayedLocationsOnMultiLineView.append({"width": 10, "weight": 0})
 
     @property
     def displayedLocationsOnMultiLineView(self):
         return self._displayedLocationsOnMultiLineView
 
     def loadTestDocument(self):
-        print('loadTestDocument')
+        print("loadTestDocument")
         testDocPath = Path.cwd().parent / "resources" / "MutatorSans.designspace"
         self.designSpaceManager.useVarlib = True
         self.designSpaceManager.read(testDocPath)
         self.designSpaceManager.loadFonts(reload_=True)
         self.currentDesignSpaceLocation = self.designSpaceManager.newDefaultLocation(bend=True)
         self.currentDesignSpaceLocation = self.designSpaceManager._test_LocationAtCenter()
-        print('self.currentDesignSpaceLocation', self.currentDesignSpaceLocation)
+        print("self.currentDesignSpaceLocation", self.currentDesignSpaceLocation)
 
 
 class MultiLineView(Subscriber, WindowController):
 
     debug = DEBUG_MODE
 
-    txt = 'AVATAR'
+    txt = "AVATAR"
     # invalidCache = False
     controller = None
 
@@ -163,34 +166,25 @@ class MultiLineView(Subscriber, WindowController):
     def build(self):
         self.w = Window((600, 400), "MultiLineView", minSize=(200, 40))
 
-        self.editText = EditText("auto",
-                                 text=self.txt,
-                                 callback=self.editTextCallback)
+        self.editText = EditText("auto", text=self.txt, callback=self.editTextCallback)
         self.refreshButton = Button("auto", chr(8634), callback=self.refreshButtonCallback)
         self.invalidateCacheButton = Button("auto", "Invalidate Cache", callback=self.invalidateCacheButtonCallback)
 
-        self.ctrlsView = HorizontalStackView((0, 0, 0, 0),
-                                             views=[dict(view=self.editText),
-                                                    dict(view=self.refreshButton),
-                                                    dict(view=self.invalidateCacheButton)],
-                                             spacing=10,
-                                             alignment='center',
-                                             distribution='fillProportionally',
-                                             edgeInsets=(0, 0, 0, 0))
-
-        self.textView = MerzView(
-            "auto",
-            backgroundColor=(1, 1, 1, 1),
-            delegate=self
+        self.ctrlsView = HorizontalStackView(
+            (0, 0, 0, 0),
+            views=[dict(view=self.editText), dict(view=self.refreshButton), dict(view=self.invalidateCacheButton)],
+            spacing=10,
+            alignment="center",
+            distribution="fillProportionally",
+            edgeInsets=(0, 0, 0, 0),
         )
+
+        self.textView = MerzView("auto", backgroundColor=(1, 1, 1, 1), delegate=self)
         self.w.stack = VerticalStackView(
             (0, 0, 0, 0),
-            views=[
-                dict(view=self.ctrlsView, height=22),
-                dict(view=self.textView)
-            ],
+            views=[dict(view=self.ctrlsView, height=22), dict(view=self.textView)],
             spacing=10,
-            edgeInsets=(10, 10, 10, 10)
+            edgeInsets=(10, 10, 10, 10),
         )
         self.container = self.textView.getMerzContainer()
         self.w.open()
@@ -201,7 +195,7 @@ class MultiLineView(Subscriber, WindowController):
 
     def refreshButtonCallback(self, sender):
         self.longBoardFonts.clear()
-        self.updateView(prevTxt='', currentTxt=self.txt)
+        self.updateView(prevTxt="", currentTxt=self.txt)
         self.invalidCache = False
 
     def invalidateCacheButtonCallback(self, sender):
@@ -215,11 +209,7 @@ class MultiLineView(Subscriber, WindowController):
     def invalidCache(self, value):
         self._invalidCache = value
         if value:
-            self.container.appendFilter(
-                dict(name="gaussianBlur",
-                     filterType="gaussianBlur",
-                     radius=10)
-            )
+            self.container.appendFilter(dict(name="gaussianBlur", filterType="gaussianBlur", radius=10))
         else:
             if self.container.getFilter(name="gaussianBlur"):
                 self.container.removeFilter(name="gaussianBlur")
@@ -229,33 +219,33 @@ class MultiLineView(Subscriber, WindowController):
         self.addGlyphs(self.txt)
         self.populateFontsLayers()
         self.invalidCache = False
-        self.updateView(prevTxt='', currentTxt=self.txt)
+        self.updateView(prevTxt="", currentTxt=self.txt)
 
     def sizeChanged(self, sender):
         if not self.longBoardFonts:
             return
-        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        fontLayerHgt = self.textView.height() / len(self.controller.displayedLocationsOnMultiLineView)
         if len(self.container.getSublayers()) > 0:
             with self.container.propertyGroup():
                 for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
                     fontLayer = self.container.getSublayer(name=str(frozenLocation))
-                    fontLayer.setPosition((0, index*fontLayerHgt))
+                    fontLayer.setPosition((0, index * fontLayerHgt))
                     fontLayer.setSize((self.textView.width(), fontLayerHgt))
-                    scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
+                    scalingFactor = fontLayerHgt / fontObj.info.unitsPerEm
                     for eachGlyphBox in fontLayer.getSublayers():
                         eachGlyphBox.removeTransformation(name="scale")
                         eachGlyphBox.addScaleTransformation(scalingFactor)
 
     def populateFontsLayers(self):
-        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        fontLayerHgt = self.textView.height() / len(self.controller.displayedLocationsOnMultiLineView)
         for index, eachLocation in enumerate(self.controller.displayedLocationsOnMultiLineView):
             self.container.appendRectangleSublayer(
                 name=str(fromDictToTuple(eachLocation)),
-                position=(0, index*fontLayerHgt),
+                position=(0, index * fontLayerHgt),
                 size=(self.textView.width(), fontLayerHgt),
                 strokeColor=RED,
                 fillColor=WHITE,
-                strokeWidth=1
+                strokeWidth=1,
             )
 
     def controllerWillClose(self, info):
@@ -267,7 +257,11 @@ class MultiLineView(Subscriber, WindowController):
     def addGlyphs(self, glyphNames):
         for eachLoc in self.controller.displayedLocationsOnMultiLineView:
             frozenLocation = fromDictToTuple(eachLoc)
-            eachFont = self.longBoardFonts[frozenLocation] if frozenLocation in self.longBoardFonts else LongBoardMathFont(frozenLocation=frozenLocation)
+            eachFont = (
+                self.longBoardFonts[frozenLocation]
+                if frozenLocation in self.longBoardFonts
+                else LongBoardMathFont(frozenLocation=frozenLocation)
+            )
             for eachGlyphName in glyphNames:
                 eachFont[eachGlyphName] = self.controller.designSpaceManager.makePresentation(eachGlyphName, eachLoc)
             eachFont.injectKerningFrom(self.controller.designSpaceManager)
@@ -282,16 +276,16 @@ class MultiLineView(Subscriber, WindowController):
         """
 
         differ = Differ()
-        prevGlyphNames = splitText(prevTxt, {})
-        glyphNames = splitText(currentTxt, {})
+        prevGlyphNames = splitText(prevTxt, self.controller.designSpaceManager.characterMapping)
+        glyphNames = splitText(currentTxt, self.controller.designSpaceManager.characterMapping)
 
         self.addGlyphs(glyphNames)
 
-        fontLayerHgt = self.textView.height()/len(self.controller.displayedLocationsOnMultiLineView)
+        fontLayerHgt = self.textView.height() / len(self.controller.displayedLocationsOnMultiLineView)
         with self.container.propertyGroup():
             for index, (frozenLocation, fontObj) in enumerate(self.longBoardFonts.items()):
                 fontLayer = self.container.getSublayer(name=str(frozenLocation))
-                scalingFactor = fontLayerHgt/fontObj.info.unitsPerEm
+                scalingFactor = fontLayerHgt / fontObj.info.unitsPerEm
 
                 xx = 0
                 layerIndex = 0
@@ -301,34 +295,32 @@ class MultiLineView(Subscriber, WindowController):
                     glyphObj = fontObj[name]
 
                     # remove
-                    if sign == '-':
+                    if sign == "-":
                         glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         fontLayer.removeSublayer(glyphBoxLayer)
                         del self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         prevRemoved = True
 
                     # insert
-                    elif sign == '+':
+                    elif sign == "+":
                         glyphBoxLayer = fontLayer.appendRectangleSublayer(
                             position=(xx, 0),
                             size=(glyphObj.width, fontObj.info.unitsPerEm),
                             strokeColor=BLACK,
                             fillColor=TRANSPARENT,
-                            strokeWidth=1
+                            strokeWidth=1,
                         )
                         glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
                         self.frozenLoc_2_boxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
 
-                        glyphPathLayer = glyphBoxLayer.appendPathSublayer(
-                            fillColor=BLACK
-                        )
+                        glyphPathLayer = glyphBoxLayer.appendPathSublayer(fillColor=BLACK)
                         glyphPathLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
                         xx += glyphObj.width
                         layerIndex += 1 if not prevRemoved else 0
                         prevRemoved = False
 
                     # common, we only adjust xx position if necessary
-                    elif sign == ' ':
+                    elif sign == " ":
                         glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
                         glyphBoxLayer.setPosition((xx, 0))
                         xx += glyphObj.width
@@ -348,13 +340,13 @@ class MultiLineView(Subscriber, WindowController):
                             correction += flatKerning[pair]
                         boxLayer = self.frozenLoc_2_boxes[frozenLocation][rgtIndex]
                         prevX, prevY = boxLayer.getPosition()
-                        boxLayer.setPosition((prevX+correction, prevY))
+                        boxLayer.setPosition((prevX + correction, prevY))
 
     def currentDesignSpaceLocationDidChange(self, info):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     mc = MockController()
     MultiLineView.controller = mc
     registerRoboFontSubscriber(MultiLineView)
