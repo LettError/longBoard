@@ -121,7 +121,8 @@ class MockController:
         for _ in range(5):
             loc = self.designSpaceManager._test_randomLocation()
             self._displayedLocationsOnMultiLineView.append(loc)
-        self._displayedLocationsOnMultiLineView.append({"width": 10, "weight": 0})
+        self._displayedLocationsOnMultiLineView.append({"width": 0, "weight": 0})
+        print(self._displayedLocationsOnMultiLineView)
 
     @property
     def displayedLocationsOnMultiLineView(self):
