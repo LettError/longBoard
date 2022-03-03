@@ -5,16 +5,15 @@
 # ------------- #
 
 # -- Modules -- #
-from mojo.subscriber import registerSubscriberEvent, getRegisteredSubscriberEvents
-
+from mojo.subscriber import getRegisteredSubscriberEvents, registerSubscriberEvent
 
 # -- Constants -- #
-TOOL_KEY = 'com.lettError.LongBoard'
+TOOL_KEY = "com.lettError.LongBoard"
 DEBUG_MODE = True
 
 
 # -- Events -- #
-if __name__ == '__main__':
+if __name__ == "__main__":
     subscriberEvents = getRegisteredSubscriberEvents()
 
     # current design space location
@@ -27,7 +26,7 @@ if __name__ == '__main__':
             documentation="from controller to subscribers",
             dispatcher="roboFont",
             delay=0.2,
-            debug=DEBUG_MODE
+            debug=DEBUG_MODE,
         )
 
     # glyph mutator
@@ -46,7 +45,7 @@ if __name__ == '__main__':
             dispatcher="roboFont",
             eventInfoExtractionFunction=glyphMutatorDidChangeInfoExtractor,
             delay=0.2,
-            debug=DEBUG_MODE
+            debug=DEBUG_MODE,
         )
 
     # var model
@@ -59,7 +58,7 @@ if __name__ == '__main__':
             documentation="the var model did change",
             dispatcher="roboFont",
             delay=0.2,
-            debug=DEBUG_MODE
+            debug=DEBUG_MODE,
         )
 
     # this event is triggered when the main controller closes
@@ -73,5 +72,17 @@ if __name__ == '__main__':
             documentation="main controller window will close",
             dispatcher="roboFont",
             delay=0,
-            debug=DEBUG_MODE
+            debug=DEBUG_MODE,
+        )
+
+    eventName = f"{TOOL_KEY}.displayedLocationsOnMultiLineViewDidChange"
+    if eventName not in subscriberEvents:
+        registerSubscriberEvent(
+            subscriberEventName=eventName,
+            methodName="displayedLocationsOnMultiLineViewDidChange",
+            lowLevelEventNames=[eventName],
+            documentation="triggers a refresh on the multiline view when different locations should be displayed",
+            dispatcher="roboFont",
+            delay=0.2,
+            debug=DEBUG_MODE,
         )
