@@ -123,7 +123,6 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         Here we should take care of decomposing the glyph for display
         """
         cacheKey = (glyphName, decomposeComponents)
-        print(glyphName)
         items = self.collectMastersForGlyph(glyphName, decomposeComponents=decomposeComponents)
 
         # RA: it seems that the second item of each tuple coming from the collectMastersForGlyph method
@@ -131,7 +130,6 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
         #     also, could be a nice idea to change collectMastersForGlyph in something like collectSourcesForGlyph?
         new = []
         for location, glyphObj, sourceAttributes in items:
-            print(glyphObj.components)
             if hasattr(glyphObj, "toMathGlyph"):
                 # note: calling toMathGlyph ignores the mathGlyphClass preference
                 # maybe the self.mathGlyphClass is not necessary?
