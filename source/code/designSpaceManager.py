@@ -12,7 +12,6 @@ from pprint import pprint
 import ufoProcessor
 from fontMath import MathGlyph
 from merz import MerzPen
-from mojo.pens import DecomposePointPen
 from mojo.roboFont import AllFonts, RFont
 
 
