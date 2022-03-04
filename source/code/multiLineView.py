@@ -144,7 +144,6 @@ class MultiLineView(Subscriber, WindowController):
     debug = DEBUG_MODE
 
     txt = "AVATAR"
-    # invalidCache = False
     controller = None
 
     frozenLocToBoxes = defaultdict(list)
@@ -160,11 +159,10 @@ class MultiLineView(Subscriber, WindowController):
 
         self.editText = EditText("auto", text=self.txt, callback=self.editTextCallback)
         self.refreshButton = Button("auto", chr(8634), callback=self.refreshButtonCallback)
-        self.invalidateCacheButton = Button("auto", "Invalidate Cache", callback=self.invalidateCacheButtonCallback)
 
         self.ctrlsView = HorizontalStackView(
             (0, 0, 0, 0),
-            views=[dict(view=self.editText), dict(view=self.refreshButton), dict(view=self.invalidateCacheButton)],
+            views=[dict(view=self.editText), dict(view=self.refreshButton)],
             spacing=10,
             alignment="center",
             distribution="fillProportionally",
@@ -197,9 +195,6 @@ class MultiLineView(Subscriber, WindowController):
     def editTextCallback(self, sender):
         self.updateView(prevTxt=self.txt, currentTxt=sender.get())
         self.txt = sender.get()
-
-    def invalidateCacheButtonCallback(self, sender):
-        self.invalidCache = True
 
     @property
     def invalidCache(self):
@@ -347,6 +342,9 @@ class MultiLineView(Subscriber, WindowController):
 
     def varModelDidChange(self, info):
         self.refreshButtonCallback(sender=None)
+
+    def glyphMutatorDidChange(self, info):
+        self.invalidCache = True
 
 
 if __name__ == "__main__":
