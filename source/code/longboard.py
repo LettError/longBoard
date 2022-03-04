@@ -64,12 +64,12 @@ class Controller(WindowController):
     debug = DEBUG_MODE
     _currentDesignSpaceLocation = None
     _displayedLocationsOnMultiLineView = [
-        {"width": 54, "weight": 391},
+        {"width": 54,  "weight": 391},
         {"width": 132, "weight": 272},
         {"width": 451, "weight": 942},
         {"width": 333, "weight": 741},
-        {"width": 94, "weight": 650},
-        {"width": 0, "weight": 0},
+        {"width": 94,  "weight": 650},
+        {"width": 0,   "weight": 0},
     ]
 
     def build(self):
