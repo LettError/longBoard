@@ -143,7 +143,7 @@ class MultiLineView(Subscriber, WindowController):
 
     debug = DEBUG_MODE
 
-    txt = "AVATAR"
+    txt = "LONGBOARD"
     controller = None
 
     frozenLocToBoxes = defaultdict(list)
