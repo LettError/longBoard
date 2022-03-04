@@ -8,8 +8,6 @@
 from collections import deque
 from itertools import chain, repeat
 
-from mojo.roboFont import AllFonts
-
 
 # -- Functions -- #
 def windowed(seq, n, fillvalue=None, step=1):
@@ -55,52 +53,3 @@ def windowed(seq, n, fillvalue=None, step=1):
     elif 0 < i < min(step, n):
         window += (fillvalue,) * i
         yield tuple(window)
-
-
-def sharedCharacterMapping(fonts):
-    """
-    Return
-        - a character mapping shared among the input fonts
-          A {key: value} pair is saved into sharedCharacterMapping
-          only if all input fonts have the key in their character mappings
-          and also share the same value
-        - a set of discarded code points
-    """
-    sharedCharacterMapping = {}
-    discarded = set()
-
-    allCodePoints = set()
-    for eachFont in fonts:
-        charMap = eachFont.getCharacterMapping()
-        allCodePoints.update(charMap.keys())
-
-    for eachCodePoint in allCodePoints:
-        values = set()
-        abort = False
-        for eachFont in fonts:
-            eachMapping = eachFont.getCharacterMapping()
-            if eachCodePoint not in eachMapping:
-                abort = True
-                break
-            else:
-                if len(eachMapping[eachCodePoint]) > 1:
-                    values.add(tuple(eachMapping[eachCodePoint]))
-                else:
-                    values.add(eachMapping[eachCodePoint][0])
-
-        if not abort:
-            if len(values) == 1:
-                sharedCharacterMapping[eachCodePoint] = values.pop()
-            else:
-                abort = True
-
-        if abort:
-            discarded.add(eachCodePoint)
-
-    return sharedCharacterMapping, discarded
-
-
-if __name__ == "__main__":
-    sharedCharMap, nonShared = sharedCharacterMapping(AllFonts())
-    print(sharedCharMap)
-    print(nonShared)

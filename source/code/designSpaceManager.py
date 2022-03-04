@@ -15,8 +15,6 @@ from merz import MerzPen
 from mojo.pens import DecomposePointPen
 from mojo.roboFont import AllFonts, RFont
 
-from tools import sharedCharacterMapping
-
 
 # -- Helpers -- #
 def lerp(a, b, f):

@@ -271,8 +271,9 @@ class MultiLineView(Subscriber, WindowController):
             return
 
         differ = Differ()
-        prevGlyphNames = splitText(prevTxt, self.controller.designSpaceManager.characterMapping)
-        glyphNames = splitText(currentTxt, self.controller.designSpaceManager.characterMapping)
+        charMap = self.controller.designSpaceManager.getNeutralFont().asFontParts().getCharacterMapping()
+        prevGlyphNames = splitText(prevTxt, charMap)
+        glyphNames = splitText(currentTxt, charMap)
 
         self.addGlyphs(glyphNames)
 
