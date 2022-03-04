@@ -300,6 +300,7 @@ class MultiLineView(Subscriber, WindowController):
                     elif sign == "+":
                         glyphBoxLayer = fontLayer.appendRectangleSublayer(
                             position=(xx, 0),
+                            name=f"glyph box layer {name}",
                             size=(glyphObj.width, fontObj.info.unitsPerEm),
                             strokeColor=BLACK,
                             fillColor=TRANSPARENT,
@@ -308,7 +309,7 @@ class MultiLineView(Subscriber, WindowController):
                         glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
                         self.frozenLocToBoxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
 
-                        glyphPathLayer = glyphBoxLayer.appendPathSublayer(fillColor=BLACK)
+                        glyphPathLayer = glyphBoxLayer.appendPathSublayer(name=f"glyph path {name}", fillColor=BLACK)
                         glyphPathLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
                         xx += glyphObj.width
                         layerIndex += 1 if not prevRemoved else 0
