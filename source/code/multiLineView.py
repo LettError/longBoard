@@ -147,7 +147,7 @@ class MultiLineView(Subscriber, WindowController):
     # invalidCache = False
     controller = None
 
-    frozenLoc_2_boxes = defaultdict(list)
+    frozenLocToBoxes = defaultdict(list)
 
     # this work as a container for real fonts (defcon, fontparts) or pseudo fonts, dictionaries of custom MathGlyphs
     # these "font" objects must respect:
@@ -188,7 +188,7 @@ class MultiLineView(Subscriber, WindowController):
 
     def refreshButtonCallback(self, sender):
         self.longBoardFonts.clear()
-        self.frozenLoc_2_boxes.clear()
+        self.frozenLocToBoxes.clear()
         self.container.clearSublayers()
         self.populateFontsLayers()
         self.invalidCache = False
@@ -296,9 +296,9 @@ class MultiLineView(Subscriber, WindowController):
 
                     # remove
                     if sign == "-":
-                        glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
+                        glyphBoxLayer = self.frozenLocToBoxes[frozenLocation][layerIndex]
                         fontLayer.removeSublayer(glyphBoxLayer)
-                        del self.frozenLoc_2_boxes[frozenLocation][layerIndex]
+                        del self.frozenLocToBoxes[frozenLocation][layerIndex]
                         prevRemoved = True
 
                     # insert
@@ -311,7 +311,7 @@ class MultiLineView(Subscriber, WindowController):
                             strokeWidth=1,
                         )
                         glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
-                        self.frozenLoc_2_boxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
+                        self.frozenLocToBoxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
 
                         glyphPathLayer = glyphBoxLayer.appendPathSublayer(fillColor=BLACK)
                         glyphPathLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
@@ -321,7 +321,7 @@ class MultiLineView(Subscriber, WindowController):
 
                     # common, we only adjust xx position if necessary
                     elif sign == " ":
-                        glyphBoxLayer = self.frozenLoc_2_boxes[frozenLocation][layerIndex]
+                        glyphBoxLayer = self.frozenLocToBoxes[frozenLocation][layerIndex]
                         glyphBoxLayer.setPosition((xx, 0))
                         xx += glyphObj.width
                         layerIndex += 1 if not prevRemoved else 0
@@ -338,7 +338,7 @@ class MultiLineView(Subscriber, WindowController):
                         pair = glyphNames[lftIndex], glyphNames[rgtIndex]
                         if pair in flatKerning:
                             correction += flatKerning[pair]
-                        boxLayer = self.frozenLoc_2_boxes[frozenLocation][rgtIndex]
+                        boxLayer = self.frozenLocToBoxes[frozenLocation][rgtIndex]
                         prevX, prevY = boxLayer.getPosition()
                         boxLayer.setPosition((prevX + correction, prevY))
 
