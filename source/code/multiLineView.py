@@ -320,7 +320,7 @@ class MultiLineView(Subscriber, WindowController):
                         glyphBoxLayer = self.frozenLocToBoxes[frozenLocation][layerIndex]
                         glyphBoxLayer.setPosition((xx, 0))
                         xx += glyphObj.width
-                        layerIndex += 1 if not prevRemoved else 0
+                        layerIndex += 1
                         prevRemoved = False
 
                     else:
