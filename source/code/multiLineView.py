@@ -146,11 +146,14 @@ class MultiLineView(Subscriber, WindowController):
     txt = "LONGBOARD"
     controller = None
 
-    frozenLocToBoxes = defaultdict(list)
+    # this dict stores references to singleLine rectangle merz layer to the locations (frozen ones) displayed
+    # in the multi line view, something like:
+    # ((width, 100), (weight, 300)): merzLayer (second line from the top)
+    frozenLocToFontMerzLayer = defaultdict(list)
 
-    # this work as a container for real fonts (defcon, fontparts) or pseudo fonts, dictionaries of custom MathGlyphs
+    # this work as a container pseudo longboard fonts, dictionaries of custom MathGlyphs
     # these "font" objects must respect:
-    # - a dict like structure, glyph names: glyph obj
+    # - a dict like structure {name: glyphObj}
     # - the glyph object must be able to execute a getRepresentation("merz.CGPath") method
     longBoardFonts = dict()
 
@@ -185,8 +188,12 @@ class MultiLineView(Subscriber, WindowController):
         self.updateView(prevTxt="", currentTxt=self.txt)
 
     def refreshButtonCallback(self, sender):
+        """
+        DRAWING
+            This is a hard refresh, clears everything!
+        """
         self.longBoardFonts.clear()
-        self.frozenLocToBoxes.clear()
+        self.frozenLocToFontMerzLayer.clear()
         self.container.clearSublayers()
         self.populateFontsLayers()
         self.invalidCache = False
@@ -202,6 +209,12 @@ class MultiLineView(Subscriber, WindowController):
 
     @invalidCache.setter
     def invalidCache(self, value):
+        """
+        DRAWING
+            when the invalidCache value is set to False or True
+            the gaussian filter applied on the merz container is applied or removed
+            also, the edit text is enable/disabled
+        """
         self._invalidCache = value
         if value:
             if not self.container.getFilter(name="gaussianBlur"):
@@ -212,6 +225,12 @@ class MultiLineView(Subscriber, WindowController):
         self.editText.enable(not value)
 
     def sizeChanged(self, sender):
+        """
+        DRAWING
+            when the size of the window is changed, and therefore the merz view too
+            the view is not entirely re-drawn, only the size and position properties
+            are updated
+        """
         if not self.longBoardFonts:
             return
         fontLayerHgt = self.textView.height() / len(self.controller.displayedLocationsOnMultiLineView)
@@ -227,6 +246,13 @@ class MultiLineView(Subscriber, WindowController):
                         eachGlyphBox.addScaleTransformation(scalingFactor)
 
     def populateFontsLayers(self):
+        """
+        DRAWING
+            This method create the font merz layers inside the container
+            These are rectangles running from left to right in the container
+            The height of each rectangle is the height of the container divided
+            by the number of displayed locations
+        """
         if len(self.controller.displayedLocationsOnMultiLineView) == 0:
             return
 
@@ -242,12 +268,18 @@ class MultiLineView(Subscriber, WindowController):
             )
 
     def controllerWillClose(self, info):
-        # considering that the controller object does not have direct access to the subordinate
-        # object window, we need to use a custom event to close the MultiLineView vanilla window
-        # otherwise it will stay open after longboard has been closed by the user
+        """
+        considering that the controller object does not have direct access to the subordinate
+        object window, we need to use a custom event to close the MultiLineView vanilla window
+        otherwise it will stay open after longboard has been closed by the user
+        """
         self.w.close()
 
     def addGlyphs(self, glyphNames):
+        """
+        Add glyphs to the longboard fonts as needed for displaying on the multi line view
+
+        """
         for eachLoc in self.controller.displayedLocationsOnMultiLineView:
             frozenLocation = fromDictToTuple(eachLoc)
             eachFont = (
@@ -261,12 +293,20 @@ class MultiLineView(Subscriber, WindowController):
             self.longBoardFonts[frozenLocation] = eachFont
 
     def updateView(self, prevTxt, currentTxt):
-        """this should work through a diff, to avoid refreshing the entire stack of layers, what might change:
-            - chars in edit text (one less, one more, copy paste of an entire different string)
-            - fonts?
-        --> check the diffStrings.py example in the experiments folder
+        """
+        DRAWING
+            the updateView() works through a diff algorithm, to avoid refreshing the entire stack of layers
+            if the user types one char at the time, we add only the newest one instead of re-drawing the entire view
+            the same happens when a char is deleted, instead of cleaning everything, we only adjust the x position of the layers
+
+            Hierarchy:
+                - fontLayer
+                    - glyphbox
+                        - glyphpath
+
         """
 
+        # if no location is displayed, we bail out
         if len(self.controller.displayedLocationsOnMultiLineView) == 0:
             return
 
@@ -290,14 +330,14 @@ class MultiLineView(Subscriber, WindowController):
                     sign, name = difference[0], difference[2:]
                     glyphObj = fontObj[name]
 
-                    # remove
+                    # remove char
                     if sign == "-":
-                        glyphBoxLayer = self.frozenLocToBoxes[frozenLocation][layerIndex]
+                        glyphBoxLayer = self.frozenLocToFontMerzLayer[frozenLocation][layerIndex]
                         fontLayer.removeSublayer(glyphBoxLayer)
-                        del self.frozenLocToBoxes[frozenLocation][layerIndex]
+                        del self.frozenLocToFontMerzLayer[frozenLocation][layerIndex]
                         prevRemoved = True
 
-                    # insert
+                    # insert char
                     elif sign == "+":
                         glyphBoxLayer = fontLayer.appendRectangleSublayer(
                             position=(xx, 0),
@@ -308,7 +348,7 @@ class MultiLineView(Subscriber, WindowController):
                             strokeWidth=1,
                         )
                         glyphBoxLayer.addScaleTransformation(scalingFactor, name="scale")
-                        self.frozenLocToBoxes[frozenLocation].insert(layerIndex, glyphBoxLayer)
+                        self.frozenLocToFontMerzLayer[frozenLocation].insert(layerIndex, glyphBoxLayer)
 
                         glyphPathLayer = glyphBoxLayer.appendPathSublayer(name=f"glyph path {name}", fillColor=BLACK)
                         glyphPathLayer.setPath(glyphObj.getRepresentation("merz.CGPath"))
@@ -316,9 +356,9 @@ class MultiLineView(Subscriber, WindowController):
                         layerIndex += 1 if not prevRemoved else 0
                         prevRemoved = False
 
-                    # common, we only adjust xx position if necessary
+                    # common char, we only adjust xx position if necessary
                     elif sign == " ":
-                        glyphBoxLayer = self.frozenLocToBoxes[frozenLocation][layerIndex]
+                        glyphBoxLayer = self.frozenLocToFontMerzLayer[frozenLocation][layerIndex]
                         glyphBoxLayer.setPosition((xx, 0))
                         xx += glyphObj.width
                         layerIndex += 1
@@ -335,17 +375,26 @@ class MultiLineView(Subscriber, WindowController):
                         pair = glyphNames[lftIndex], glyphNames[rgtIndex]
                         if pair in flatKerning:
                             correction += flatKerning[pair]
-                        boxLayer = self.frozenLocToBoxes[frozenLocation][rgtIndex]
+                        boxLayer = self.frozenLocToFontMerzLayer[frozenLocation][rgtIndex]
                         prevX, prevY = boxLayer.getPosition()
                         boxLayer.setPosition((prevX + correction, prevY))
 
     def displayedLocationsOnMultiLineViewDidChange(self, info):
+        """
+        A change on the displayed locations triggers a hard refresh
+        """
         self.refreshButtonCallback(sender=None)
 
     def varModelDidChange(self, info):
+        """
+        A change on variation model triggers a hard refresh
+        """
         self.refreshButtonCallback(sender=None)
 
     def glyphMutatorDidChange(self, info):
+        """
+        A change a glyph mutator invalidates the multi line view
+        """
         self.invalidCache = True
 
 

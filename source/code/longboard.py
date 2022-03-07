@@ -253,6 +253,14 @@ class GlyphEditorSubscriber(Subscriber):
         self.container.clearSublayers()
 
     def updatePreview(self):
+        """
+        DRAWING
+        This method takes care of updating the preview in the glyph editor
+        It is articulated in two merz layers:
+            - (if mutator works) the self.previewLayer shows the mutator at the current location and self.sourcesLayer is cleared
+            - (if mutator doesn't work) the sources are shows in the self.sourcesLayer and self.previewLayer is cleared
+
+        """
         glyphName = self.getGlyphEditor().getGlyph().name
         location = self.controller.currentDesignSpaceLocation
         glyphObj = self.controller.designSpaceManager.makePresentation(glyphName, location)
@@ -275,6 +283,11 @@ class GlyphEditorSubscriber(Subscriber):
 
             xx = 0
             for location, mathGlyph, sourceAttributes in sources:
+                """
+                DRAWING
+                    each glyph lives in separate merz path layer appended to self.sourcesLayer
+                    transformations are applied like filters
+                """
                 glyphLayer = self.sourcesLayer.appendPathSublayer(strokeWidth=1)
 
                 randomizeLayerColors(layer=glyphLayer)
@@ -302,6 +315,7 @@ class NavigatorTool(BaseEventTool):
 
     """
     This tool can update the design space location displayed in preview by LongBoard
+    Right now the tool changes location randomly each time the mouse clicks on the glyph editor
     """
 
     def setup(self):
@@ -324,7 +338,7 @@ class SpaceWindow(Subscriber, WindowController):
     This window controller own a separate window where the geometry of the design space is displayed
     and receives a notification when
         - the main controller closes, so it can close its own window
-        - when the displyed design space location changes
+        - when the displayed design space location changes
     """
 
     debug = DEBUG_MODE
@@ -370,6 +384,13 @@ class SpaceWindow(Subscriber, WindowController):
         self.controller.currentDesignSpaceLocation = location
 
     def updateCurrentLocationLayer(self):
+        """
+        DRAWING
+        This method updates the SpaceWindow merz view. The Window receives an event when the current
+        design space location changes, and this method is executed.
+        Right now not much happens drawing-wise, but in the future it should happen here
+
+        """
         print("updateCurrentLocationLayer")
         glyphObj = self.controller.designSpaceManager.makePresentation(
             self.glyphName, self.controller.currentDesignSpaceLocation
@@ -388,6 +409,8 @@ class FontManager(Subscriber):
     with the right references
 
     NOT WORKING PROPERLY YET!
+    07/03/2022 -> to be honest, I don't remember what does not work with this subscriber
+
     """
 
     debug = DEBUG_MODE
