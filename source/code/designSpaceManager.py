@@ -82,10 +82,6 @@ class DesignSpaceManager(ufoProcessor.DesignSpaceProcessor):
                     _fonts[sourceDescriptor.name] = None
                     self.problems.append(f"can't load master from {sourceDescriptor.path}")
 
-        self.characterMapping, discarded = sharedCharacterMapping(_fonts.values())
-        self.toolLog.append(
-            f"The following code points cannot be accessed because they are not shared among the sources: {discarded}"
-        )
         self.glyphNames = list(names)
         self._fontsLoaded = True
         self.fonts = _fonts
