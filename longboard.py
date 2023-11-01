@@ -22,20 +22,20 @@ from fontTools.pens.basePen import BasePen
 
 
 
-eventID = "com.letterror.DSENavigator"
+eventID = "com.letterror.longboardNavigator"
 navigatorLocationChangedEventKey = eventID + "navigatorLocationChanged.event"
 navigatorUnitChangedEventKey = eventID + "navigatorUnitChanged.event"
 navigatorActiveEventKey = eventID + "navigatorActive.event"
 navigatorInactiveEventKey = eventID + "navigatorInctive.event"
 
 
-demoID = "com.letterror.DSEPreview"
-containerKey = demoID + ".layer"
-settingsChangedEventKey = demoID + "settingsChanged.event"
-operatorChangedEventKey = demoID + "operatorChanged.event"
+toolID = "com.letterror.longboard"
+containerKey = toolID + ".layer"
+settingsChangedEventKey = toolID + "settingsChanged.event"
+operatorChangedEventKey = toolID + "operatorChanged.event"
 #print('eventKey', eventKey)
 
-interactionSourcesLibKey = demoID + ".interactionSources"
+interactionSourcesLibKey = toolID + ".interactionSources"
 
 defaultStrokeWidth = 1
 
@@ -186,10 +186,10 @@ class LongBoardUIController(Subscriber, ezui.WindowController):
         
     def started(self):
         self.w.open()
-        registerGlyphEditorSubscriber(EditorDSEView)
+        registerGlyphEditorSubscriber(LongboardEditorView)
 
     def destroy(self):
-        unregisterGlyphEditorSubscriber(EditorDSEView)
+        unregisterGlyphEditorSubscriber(LongboardEditorView)
 
     def navigatorLocationChanged(self, info):
         # @@ receive notifications about the navigator location changing.
@@ -296,7 +296,7 @@ class LongBoardUIController(Subscriber, ezui.WindowController):
         postEvent(settingsChangedEventKey, hazeValue=value)
 
 
-class EditorDSEView(Subscriber):
+class LongboardEditorView(Subscriber):
 
     debug = True
     hazeValue = 0.16
@@ -691,6 +691,7 @@ class EditorDSEView(Subscriber):
 
 
 def previewSettingsExtractor(subscriber, info):
+    # crikey there as to be a more efficient way to do this.
     info["showPreview"] = None
     info["showSources"] = None
     info["centerPreview"] = None
@@ -710,6 +711,7 @@ def previewSettingsExtractor(subscriber, info):
         info["hazeValue"] = lowLevelEvent.get("hazeValue")
 
 
+# 
 registerSubscriberEvent(
     subscriberEventName=settingsChangedEventKey,
     methodName="showSettingsChanged",
@@ -720,6 +722,8 @@ registerSubscriberEvent(
     debug=True
 )
 
+# The concept of "relevant" operator:
+# it is the operator that belongs to the font that belongs to the glyph that is in the editor.
 registerSubscriberEvent(
     subscriberEventName=operatorChangedEventKey,
     methodName="relevantOperatorChanged",
@@ -736,7 +740,7 @@ registerSubscriberEvent(
     lowLevelEventNames=[navigatorLocationChangedEventKey],
     dispatcher="roboFont",
     delay=0,
-    documentation="Posted by the DSE Navigator Tool to the LongBoardUIController",
+    documentation="Posted by the Longboard Navigator Tool to the LongBoardUIController",
     debug=True
 )
 
@@ -753,7 +757,7 @@ registerSubscriberEvent(
 
 
 
-class NavigatorTool(BaseEventTool):
+class LongboardNavigatorTool(BaseEventTool):
     def setup(self):
         self.start = None
 
@@ -779,11 +783,11 @@ class NavigatorTool(BaseEventTool):
         publishEvent(navigatorLocationChangedEventKey, data=data)
         
     def getToolbarTip(self):
-        return "DSE Navigator"
+        return "Longboard Navigator"
 
 if __name__ == "__main__":
     import time
-    nt = NavigatorTool()
+    nt = LongboardNavigatorTool()
     installTool(nt)
     print(time.time(),"refreshed navigator")
 
