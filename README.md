@@ -1,7 +1,15 @@
-# longBoard
+# LongBoard
 
-Skateboard rolling on subscriber, ezui and merz
+A new Skateboard rolling on subscriber, ezui and merz, and free.
 
-For now the experiment_ scripts will open the designspace + masters in test/
+* RF 4.4+
+* Open a designspace in DSE2
+* Open a glyph window
 
-![](they_move.mp4)
+
+
+## Thanks
+
+Based on many experiments and iterations and not anywhere done. Thanks for Frederik Berlaen, Tal Leming, Roberto Arista. 
+
+
