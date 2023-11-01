@@ -757,7 +757,7 @@ registerSubscriberEvent(
 
 
 
-class LongboardNavigatorTool(BaseEventTool):
+class LongboardNavigatorTool(Subscriber, BaseEventTool):
     def setup(self):
         self.start = None
 
@@ -766,6 +766,11 @@ class LongboardNavigatorTool(BaseEventTool):
 
     #def becomeInactive(self):
     #    publishEvent(navigatorInactiveEventKey)
+
+    def relevantOperatorChanged(self, info):
+        print("LongboardNavigatorTool.relevantOperatorChanged ?")
+        # oh wait! this means that the navigatortool can 
+        # keep track of the operator!
 
     def mouseDown(self, point, event):
         if self.start is None:
